@@ -13,6 +13,44 @@ func failOnError(err error, msg string) {
 	}
 }
 
+func declareExchanges(ch *amqp.Channel) error {
+	err := ch.ExchangeDeclare(
+		directMessagesExchange,
+		"direct",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = ch.ExchangeDeclare(
+		globalReplyExchange,
+		"topic",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	return ch.ExchangeDeclare(
+		eventsExchange,
+		"topic",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+}
+
 func bindCommands(appName string, ch *amqp.Channel) (*amqp.Queue, error) {
 	queue, err := ch.QueueDeclare(buildQueueName(appName, commandsQueueSuffix), true, false, false, false, nil)
 	if err != nil {

@@ -112,9 +112,9 @@ func (l *RabbitListener) AddQueryHandler(
 func (l *RabbitListener) Listen(
 	ctx context.Context,
 ) error {
-	err := declareDirectMessagesExchange(l.ch)
+	err := declareExchanges(l.ch)
 	if err != nil {
-		return fmt.Errorf("error declareDirectMessagesExchange: %s", err.Error())
+		return fmt.Errorf("error declaring exchanges: %s", err.Error())
 	}
 
 	cmdsQueue, err := bindCommands(l.appName, l.ch)
@@ -384,9 +384,4 @@ func (l *RabbitListener) handleErrHandler(msg *amqp.Delivery, typ string, err er
 
 	time.Sleep(l.configs.DelayOnReject.Abs())
 	msg.Reject(true)
-}
-
-func declareDirectMessagesExchange(channel *amqp.Channel) error {
-	return channel.ExchangeDeclare(
-		directMessagesExchange, "direct", true, false, false, false, nil)
 }
