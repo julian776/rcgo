@@ -12,7 +12,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type RabbitListener struct {
+type Listener struct {
 	id      string
 	appName string
 	logger  Logger
@@ -26,11 +26,11 @@ type RabbitListener struct {
 	queryHandlers map[string]QueryHandlerFunc
 }
 
-func NewRabbitListener(
+func NewListener(
 	logger Logger,
 	configs ListenerConfigs,
 	appName string,
-) *RabbitListener {
+) *Listener {
 	if configs.Url == "" {
 		panic("Can not connect to RabbitMQ url is blank")
 	}
@@ -43,7 +43,7 @@ func NewRabbitListener(
 	ch, err := conn.Channel()
 	failOnError(err, "Failed to open a channel")
 
-	return &RabbitListener{
+	return &Listener{
 		id:            fmt.Sprintf("%s.%s", appName, uuid.NewString()),
 		appName:       appName,
 		logger:        logger,
@@ -56,14 +56,14 @@ func NewRabbitListener(
 	}
 }
 
-func (l *RabbitListener) Stop() error {
+func (l *Listener) Stop() error {
 	ctx := context.Background()
 	ctx, _ = context.WithTimeout(ctx, 5*time.Second)
 
 	return l.StopWithContext(ctx)
 }
 
-func (l *RabbitListener) StopWithContext(ctx context.Context) error {
+func (l *Listener) StopWithContext(ctx context.Context) error {
 	l.logger.Infof("Stopping listener...")
 	c := make(chan error)
 
@@ -81,21 +81,21 @@ func (l *RabbitListener) StopWithContext(ctx context.Context) error {
 	}
 }
 
-func (l *RabbitListener) AddCommandHandler(
+func (l *Listener) AddCommandHandler(
 	typeMessage string,
 	handler CmdHandlerFunc,
 ) {
 	l.cmdHandlers[typeMessage] = handler
 }
 
-func (l *RabbitListener) AddEventHandler(
+func (l *Listener) AddEventHandler(
 	typeMessage string,
 	handler EventHandlerFunc,
 ) {
 	l.eventHandlers[typeMessage] = handler
 }
 
-func (l *RabbitListener) AddQueryHandler(
+func (l *Listener) AddQueryHandler(
 	typeMessage string,
 	handler QueryHandlerFunc,
 ) {
@@ -109,7 +109,7 @@ func (l *RabbitListener) AddQueryHandler(
 // If an unexpected message is received, it will
 // acknowledge it to the server and then ignore it.
 // The method blocks until the context is done.
-func (l *RabbitListener) Listen(
+func (l *Listener) Listen(
 	ctx context.Context,
 ) error {
 	err := declareExchanges(l.ch)
@@ -187,7 +187,7 @@ func (l *RabbitListener) Listen(
 	return nil
 }
 
-func (l *RabbitListener) cmdsWorker(
+func (l *Listener) cmdsWorker(
 	ctx context.Context,
 	cMessages <-chan amqp.Delivery,
 ) {
@@ -207,7 +207,7 @@ func (l *RabbitListener) cmdsWorker(
 // `amqp.Delivery` message to a domain `Message`
 // using a mapper function, and then calls each
 // registered handler.
-func (l *RabbitListener) processCmd(
+func (l *Listener) processCmd(
 	ctx context.Context,
 	message *amqp.Delivery,
 ) {
@@ -233,7 +233,7 @@ func (l *RabbitListener) processCmd(
 	message.Ack(false)
 }
 
-func (l *RabbitListener) eventsWorker(
+func (l *Listener) eventsWorker(
 	ctx context.Context,
 	cMessages <-chan amqp.Delivery,
 ) {
@@ -253,7 +253,7 @@ func (l *RabbitListener) eventsWorker(
 // `amqp.Delivery` message to a domain `Message`
 // using a mapper function, and then calls each
 // registered handler.
-func (l *RabbitListener) processEvent(
+func (l *Listener) processEvent(
 	ctx context.Context,
 	message *amqp.Delivery,
 ) {
@@ -279,7 +279,7 @@ func (l *RabbitListener) processEvent(
 	message.Ack(false)
 }
 
-func (l *RabbitListener) queriesWorker(
+func (l *Listener) queriesWorker(
 	ctx context.Context,
 	cMessages <-chan amqp.Delivery,
 ) {
@@ -299,7 +299,7 @@ func (l *RabbitListener) queriesWorker(
 // `amqp.Delivery` message to a domain `Message`
 // using a mapper function, and then calls each
 // registered handler.
-func (l *RabbitListener) processQuery(
+func (l *Listener) processQuery(
 	ctx context.Context,
 	message *amqp.Delivery,
 ) {
@@ -330,7 +330,7 @@ func (l *RabbitListener) processQuery(
 	message.Ack(false)
 }
 
-func (l *RabbitListener) publishReply(
+func (l *Listener) publishReply(
 	ctx context.Context,
 	replyTo,
 	correlationID string,
@@ -364,7 +364,7 @@ func (l *RabbitListener) publishReply(
 	return nil
 }
 
-func (l *RabbitListener) handleMsgNoHandlers(msg *amqp.Delivery, typ string) {
+func (l *Listener) handleMsgNoHandlers(msg *amqp.Delivery, typ string) {
 	l.logger.Warnf("ignoring message due to no handler registered, message type [%s]", typ)
 
 	if l.configs.AckIfNoHandlers {
@@ -375,7 +375,7 @@ func (l *RabbitListener) handleMsgNoHandlers(msg *amqp.Delivery, typ string) {
 	}
 }
 
-func (l *RabbitListener) handleErrHandler(msg *amqp.Delivery, typ string, err error) {
+func (l *Listener) handleErrHandler(msg *amqp.Delivery, typ string, err error) {
 	l.logger.Errorf(
 		"error in handler for type [%s] while processing command %s",
 		typ,

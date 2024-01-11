@@ -11,7 +11,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type RabbitPublisher struct {
+type Publisher struct {
 	id         string
 	appName    string
 	logger     Logger
@@ -21,21 +21,21 @@ type RabbitPublisher struct {
 	repliesMap map[string]interface{}
 }
 
-func (p *RabbitPublisher) Stop() {
+func (p *Publisher) Stop() {
 	p.conn.Close()
 	p.ch.Close()
 }
 
-// Returns a new `RabbitPublisher` instance
+// Returns a new `Publisher` instance
 // with the connection and channel set up.
 func NewRabbitPublisher(
 	logger Logger,
 	configs *PublisherConfigs,
 	appName string,
-) *RabbitPublisher {
+) *Publisher {
 	if configs.Url == "" {
 		logger.Errorf("Can not connect to RabbitMQ url is blank")
-		return &RabbitPublisher{}
+		return &Publisher{}
 	}
 
 	conn, err := amqp.Dial(configs.Url)
@@ -44,7 +44,7 @@ func NewRabbitPublisher(
 	ch, err := conn.Channel()
 	failOnError(err, "Failed to open a channel")
 
-	return &RabbitPublisher{
+	return &Publisher{
 		id:      fmt.Sprintf("%s.%s", appName, uuid.NewString()),
 		logger:  logger,
 		conn:    conn,
@@ -54,7 +54,7 @@ func NewRabbitPublisher(
 	}
 }
 
-func (p *RabbitPublisher) queueDeclare(queueName string) error {
+func (p *Publisher) queueDeclare(queueName string) error {
 	_, err := p.ch.QueueDeclare(
 		queueName, // name
 		false,     // durable
@@ -71,7 +71,7 @@ func (p *RabbitPublisher) queueDeclare(queueName string) error {
 }
 
 // PublishCmd publishes a command to a specified app in RabbitMQ
-func (p *RabbitPublisher) PublishCmd(
+func (p *Publisher) PublishCmd(
 	ctx context.Context,
 	appTarget string,
 	cmd string,
@@ -101,7 +101,7 @@ func (p *RabbitPublisher) PublishCmd(
 }
 
 // PublishEvent publishes a event to a specified app in RabbitMQ
-func (p *RabbitPublisher) PublishEvent(
+func (p *Publisher) PublishEvent(
 	ctx context.Context,
 	event string,
 	data interface{},
@@ -130,7 +130,7 @@ func (p *RabbitPublisher) PublishEvent(
 }
 
 // PublishCmd publishes a command to a specified app in RabbitMQ
-func (p *RabbitPublisher) RequestReply(
+func (p *Publisher) RequestReply(
 	ctx context.Context,
 	appTarget string,
 	query string,
