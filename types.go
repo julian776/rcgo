@@ -47,13 +47,13 @@ type Event struct {
 	Type           string
 	GenerationTime time.Time
 	Broker         string
-	Data           EventBody
+	Data           eventBody
 }
 
-type EventBody struct {
-	Name string                 `json:"name"`
-	Id   string                 `json:"eventId"`
-	Data map[string]interface{} `json:"data"`
+type eventBody struct {
+	Name string      `json:"name"`
+	Id   string      `json:"eventId"`
+	Data interface{} `json:"data"`
 }
 
 type Cmd struct {
@@ -63,13 +63,13 @@ type Cmd struct {
 	Type           string
 	GenerationTime time.Time
 	Broker         string
-	Data           CmdBody
+	Data           cmdBody
 }
 
-type CmdBody struct {
-	Name  string                 `json:"name"`
-	CmdId string                 `json:"commandId"`
-	Data  map[string]interface{} `json:"data"`
+type cmdBody struct {
+	Name  string      `json:"name"`
+	CmdId string      `json:"commandId"`
+	Data  interface{} `json:"data"`
 }
 
 type Query struct {
@@ -78,10 +78,10 @@ type Query struct {
 	Type           string
 	GenerationTime time.Time
 	Broker         string
-	Data           QueryBody
+	Data           queryBody
 }
 
-type QueryBody struct {
-	Resource string                 `json:"resource"`
-	Data     map[string]interface{} `json:"queryData"`
+type queryBody struct {
+	Resource string      `json:"resource"`
+	Data     interface{} `json:"queryData"`
 }

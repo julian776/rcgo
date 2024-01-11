@@ -2,22 +2,28 @@ package rcgo
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
+	"time"
 
+	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type RabbitPublisher struct {
-	logger  Logger
-	Conn    *amqp.Connection
-	Ch      *amqp.Channel
-	appName string
-	configs *PublisherConfigs
+	id         string
+	appName    string
+	logger     Logger
+	conn       *amqp.Connection
+	ch         *amqp.Channel
+	configs    *PublisherConfigs
+	repliesMap map[string]interface{}
 }
 
-func (c *RabbitPublisher) Stop() {
-	c.Conn.Close()
-	c.Ch.Close()
+func (p *RabbitPublisher) Stop() {
+	p.conn.Close()
+	p.ch.Close()
 }
 
 // Returns a new `RabbitPublisher` instance
@@ -39,16 +45,17 @@ func NewRabbitPublisher(
 	failOnError(err, "Failed to open a channel")
 
 	return &RabbitPublisher{
-		logger,
-		conn,
-		ch,
-		appName,
-		configs,
+		id:      fmt.Sprintf("%s.%s", appName, uuid.NewString()),
+		logger:  logger,
+		conn:    conn,
+		ch:      ch,
+		appName: appName,
+		configs: configs,
 	}
 }
 
-func (c *RabbitPublisher) QueueDeclare(queueName string) error {
-	_, err := c.Ch.QueueDeclare(
+func (p *RabbitPublisher) queueDeclare(queueName string) error {
+	_, err := p.ch.QueueDeclare(
 		queueName, // name
 		false,     // durable
 		false,     // delete when unused
@@ -63,35 +70,129 @@ func (c *RabbitPublisher) QueueDeclare(queueName string) error {
 	return nil
 }
 
-// Publishes a message to a specified queue in RabbitMQ.
-// It maps the message to a byte array using the
-// `mappers.MapStructToMessage` function and then publishes
-// the message.
-func (c *RabbitPublisher) PublishCmd(
+// PublishCmd publishes a command to a specified app in RabbitMQ
+func (p *RabbitPublisher) PublishCmd(
 	ctx context.Context,
-	appName string,
-	cmd *Cmd,
+	appTarget string,
+	cmd string,
+	data interface{},
 ) error {
-	if c.appName == "" {
-		return fmt.Errorf("error: publisher not correctly setup. You already run setup()?")
-	}
-
-	body, err := MapCmdToAmqp(
+	body, err := mapToAmqp(
+		uuid.NewString(),
+		p.appName,
 		cmd,
-		c.appName,
+		MsgTypeCmd,
+		data,
 	)
 	if err != nil {
 		return fmt.Errorf("command can not be parsed")
 	}
 
-	err = c.Ch.PublishWithContext(
+	err = p.ch.PublishWithContext(
 		ctx,
 		directMessagesExchange, // exchange
-		appName,                // routing key
+		appTarget,              // routing key
 		false,                  // mandatory
 		false,                  // immediate
 		*body,
 	)
+
+	return err
+}
+
+// PublishEvent publishes a event to a specified app in RabbitMQ
+func (p *RabbitPublisher) PublishEvent(
+	ctx context.Context,
+	event string,
+	data interface{},
+) error {
+	body, err := mapToAmqp(
+		uuid.NewString(),
+		p.appName,
+		event,
+		MsgTypeEvent,
+		data,
+	)
+	if err != nil {
+		return fmt.Errorf("event can not be parsed")
+	}
+
+	err = p.ch.PublishWithContext(
+		ctx,
+		eventsExchange, // exchange
+		event,          // routing key
+		false,          // mandatory
+		false,          // immediate
+		*body,
+	)
+
+	return err
+}
+
+// PublishCmd publishes a command to a specified app in RabbitMQ
+func (p *RabbitPublisher) RequestReply(
+	ctx context.Context,
+	appTarget string,
+	query string,
+	data interface{},
+	res interface{},
+) error {
+	if reflect.ValueOf(res).Kind() != reflect.Pointer {
+		return fmt.Errorf("res value must be a pointer")
+	}
+
+	correlationId := uuid.New().String()
+
+	body, err := mapToAmqp(
+		correlationId,
+		p.appName,
+		query,
+		MsgTypeEvent,
+		data,
+	)
+	if err != nil {
+		return fmt.Errorf("command can not be parsed")
+	}
+
+	err = p.ch.PublishWithContext(
+		ctx,
+		globalReplyExchange, // exchange
+		buildQueueName(appTarget, queriesQueueSuffix), // routing key
+		false, // mandatory
+		false, // immediate
+		*body,
+	)
+	if err != nil {
+		return err
+	}
+
+	responseChannel := make(chan []byte)
+	p.repliesMap[correlationId] = responseChannel
+
+	delay := time.NewTimer(time.Second * p.configs.ReplyTimeout)
+
+	select {
+	case <-delay.C:
+		err = fmt.Errorf("timeout while waiting for reply %s", query)
+	case responsePayload := <-responseChannel:
+		if string(responsePayload) == "" || string(responsePayload) == "null" {
+			err = fmt.Errorf("data not found [%s]", query)
+
+			break
+		}
+
+		err = json.Unmarshal(responsePayload, res)
+
+		if err != nil {
+			return err
+		}
+
+		if !delay.Stop() {
+			<-delay.C
+		}
+	}
+
+	delete(p.repliesMap, correlationId)
 
 	return err
 }
