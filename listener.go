@@ -216,31 +216,18 @@ func (l *RabbitListener) processCmd(
 	cmd := &Cmd{}
 	err := json.Unmarshal(message.Body, cmd)
 	if err != nil {
-		l.logger.Errorf("can not process message %s", err.Error())
+		l.logger.Errorf("can not process command %s", err.Error())
 	}
 
 	handler, ok := l.cmdHandlers[cmd.Data.Name]
 	if !ok {
-		l.logger.Warnf("ignoring message due to no handler registered, message type [%s]", message.Type)
-
-		if l.configs.AckIfNoHandlers {
-			message.Ack(false)
-		} else {
-			message.Reject(true)
-		}
-
+		l.handleMsgNoHandlers(message, cmd.Data.Name)
 		return
 	}
 
 	err = handler(ctx, cmd)
 	if err != nil {
-		l.logger.Errorf(
-			"error in handler for type [%s] while processing command %s",
-			cmd.Data.Name,
-			err.Error(),
-		)
-
-		message.Reject(true)
+		l.handleErrHandler(message, cmd.Data.Name, err)
 	}
 
 	message.Ack(false)
@@ -280,26 +267,13 @@ func (l *RabbitListener) processEvent(
 
 	handler, ok := l.eventHandlers[event.Data.Name]
 	if !ok {
-		l.logger.Warnf("ignoring message due to no handler registered, message type [%s]", message.Type)
-
-		if l.configs.AckIfNoHandlers {
-			message.Ack(false)
-		} else {
-			message.Reject(true)
-		}
-
+		l.handleMsgNoHandlers(message, event.Data.Name)
 		return
 	}
 
 	err = handler(ctx, event)
 	if err != nil {
-		l.logger.Errorf(
-			"error in handler for type [%s] while processing command %s",
-			event.Data.Name,
-			err.Error(),
-		)
-
-		message.Reject(true)
+		l.handleErrHandler(message, event.Data.Name, err)
 	}
 
 	message.Ack(false)
@@ -339,26 +313,13 @@ func (l *RabbitListener) processQuery(
 
 	handler, ok := l.queryHandlers[query.Data.Resource]
 	if !ok {
-		l.logger.Warnf("ignoring message due to no handler registered, message type [%s]", message.Type)
-
-		if l.configs.AckIfNoHandlers {
-			message.Ack(false)
-		} else {
-			message.Reject(true)
-		}
-
+		l.handleMsgNoHandlers(message, query.Data.Resource)
 		return
 	}
 
 	res, err := handler(ctx, query)
 	if err != nil {
-		l.logger.Errorf(
-			"error in handler for type [%s] while processing query %s",
-			query.Data.Resource,
-			err.Error(),
-		)
-
-		message.Reject(true)
+		l.handleErrHandler(message, query.Data.Resource, err)
 	}
 
 	err = l.publishReply(ctx, message.ReplyTo, message.CorrelationId, res)
@@ -401,6 +362,28 @@ func (l *RabbitListener) publishReply(
 	}
 
 	return nil
+}
+
+func (l *RabbitListener) handleMsgNoHandlers(msg *amqp.Delivery, typ string) {
+	l.logger.Warnf("ignoring message due to no handler registered, message type [%s]", typ)
+
+	if l.configs.AckIfNoHandlers {
+		msg.Ack(false)
+	} else {
+		time.Sleep(l.configs.DelayOnReject.Abs())
+		msg.Reject(true)
+	}
+}
+
+func (l *RabbitListener) handleErrHandler(msg *amqp.Delivery, typ string, err error) {
+	l.logger.Errorf(
+		"error in handler for type [%s] while processing command %s",
+		typ,
+		err.Error(),
+	)
+
+	time.Sleep(l.configs.DelayOnReject.Abs())
+	msg.Reject(true)
 }
 
 func declareDirectMessagesExchange(channel *amqp.Channel) error {
