@@ -43,6 +43,15 @@ func bindEvents(appName string, ch *amqp.Channel, eventHandlers map[string]Event
 	return &queue, nil
 }
 
+func bindQueries(appName string, ch *amqp.Channel) (*amqp.Queue, error) {
+	queue, err := ch.QueueDeclare(buildQueueName(appName, queriesQueueSuffix), true, false, false, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &queue, nil
+}
+
 func buildQueueName(appName, suffix string) string {
 	return fmt.Sprintf("%s.%s", appName, suffix)
 }

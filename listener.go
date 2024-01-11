@@ -13,10 +13,11 @@ import (
 )
 
 type RabbitListener struct {
+	id      string
+	appName string
 	logger  Logger
 	conn    *amqp.Connection
 	ch      *amqp.Channel
-	appName string
 	configs ListenerConfigs
 
 	// Keys are the message types
@@ -43,10 +44,11 @@ func NewRabbitListener(
 	failOnError(err, "Failed to open a channel")
 
 	return &RabbitListener{
+		id:            fmt.Sprintf("%s.%s", appName, uuid.NewString()),
+		appName:       appName,
 		logger:        logger,
 		conn:          conn,
 		ch:            ch,
-		appName:       appName,
 		configs:       configs,
 		cmdHandlers:   make(map[string]CmdHandlerFunc),
 		eventHandlers: make(map[string]EventHandlerFunc),
@@ -127,7 +129,7 @@ func (l *RabbitListener) Listen(
 
 	cmdsDeliveries, err := l.ch.Consume(
 		cmdsQueue.Name,
-		l.appName+uuid.NewString(),
+		l.id,
 		false,
 		false,
 		false,
@@ -145,12 +147,40 @@ func (l *RabbitListener) Listen(
 		l.logger.Errorf("error consuming events queue: %s", err.Error())
 	}
 
-	eventsDeliveries, err := l.ch.Consume(eventsQueue.Name, l.appName+uuid.NewString(), false, false, false, false, nil)
+	eventsDeliveries, err := l.ch.Consume(
+		eventsQueue.Name,
+		l.id,
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
 	if err != nil {
 		l.logger.Errorf("error consuming events queue: %s", err.Error())
 	}
 
 	go l.eventsWorker(ctx, eventsDeliveries)
+
+	queriesQueue, err := bindQueries(l.appName, l.ch)
+	if err != nil {
+		l.logger.Errorf("error consuming events queue: %s", err.Error())
+	}
+
+	queriesDeliveries, err := l.ch.Consume(
+		queriesQueue.Name,
+		l.id,
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		l.logger.Errorf("error consuming queries queue: %s", err.Error())
+	}
+
+	go l.queriesWorker(ctx, queriesDeliveries)
 
 	<-ctx.Done()
 
@@ -224,7 +254,7 @@ func (l *RabbitListener) eventsWorker(
 	for message := range cMessages {
 		// Pass a copy of msg
 		go func(message amqp.Delivery) {
-			l.processCmd(ctx, &message)
+			l.processEvent(ctx, &message)
 		}(message)
 	}
 }
