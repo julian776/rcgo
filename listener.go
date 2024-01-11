@@ -102,10 +102,8 @@ func (l *RabbitListener) AddQueryHandler(
 
 // Listens to the apps added and processes
 // the messages received from them.
-// It starts a goroutine for each app to consume
-// messages from it and then processes each message
-// using the appropiate handlers registered for
-// its type.
+// Processes each message using the appropiate
+// handlers registered for its type.
 // If an unexpected message is received, it will
 // acknowledge it to the server and then ignore it.
 // The method blocks until the context is done.
@@ -195,9 +193,11 @@ func (l *RabbitListener) processCmd(
 	if !ok {
 		l.logger.Warnf("ignoring message due to no handler registered, message type [%s]", message.Type)
 
-		// TODO: allow the user to define the action in configs.
-		// ack or reject
-		message.Ack(false)
+		if l.configs.AckIfNoHandlers {
+			message.Ack(false)
+		} else {
+			message.Reject(true)
+		}
 
 		return
 	}
@@ -252,9 +252,11 @@ func (l *RabbitListener) processEvent(
 	if !ok {
 		l.logger.Warnf("ignoring message due to no handler registered, message type [%s]", message.Type)
 
-		// TODO: allow the user to define the action in configs.
-		// ack or reject
-		message.Ack(false)
+		if l.configs.AckIfNoHandlers {
+			message.Ack(false)
+		} else {
+			message.Reject(true)
+		}
 
 		return
 	}
@@ -309,9 +311,11 @@ func (l *RabbitListener) processQuery(
 	if !ok {
 		l.logger.Warnf("ignoring message due to no handler registered, message type [%s]", message.Type)
 
-		// TODO: allow the user to define the action in configs.
-		// ack or reject
-		message.Ack(false)
+		if l.configs.AckIfNoHandlers {
+			message.Ack(false)
+		} else {
+			message.Reject(true)
+		}
 
 		return
 	}
