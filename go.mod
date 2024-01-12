@@ -1,4 +1,4 @@
-module github.com/julian776/reactive-commons-go
+module github.com/julian776/rcgo
 
 go 1.16
 
