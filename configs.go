@@ -13,6 +13,13 @@ type ListenerConfigs struct {
 	// Time to delay when rejecting
 	// messages to the server, defaults to zero.
 	DelayOnReject time.Duration
+
+	// Timezone to be used on the listener and the logger.
+	Timezone *time.Location
+
+	// Zerolog valid level. From `trace` to `panic`.
+	// To disable `disabled`
+	LogLevel string
 }
 
 type PublisherConfigs struct {

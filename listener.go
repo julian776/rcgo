@@ -10,12 +10,12 @@ import (
 
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rs/zerolog/log"
 )
 
 type Listener struct {
 	id      string
 	appName string
-	logger  Logger
 	conn    *amqp.Connection
 	ch      *amqp.Channel
 	configs ListenerConfigs
@@ -27,10 +27,14 @@ type Listener struct {
 }
 
 func NewListener(
-	logger Logger,
 	configs ListenerConfigs,
 	appName string,
 ) *Listener {
+	err := setupLogger(configs.Timezone, configs.LogLevel)
+	if err != nil {
+		failOnError(err, "invalid logger configs")
+	}
+
 	if configs.Url == "" {
 		panic("Can not connect to RabbitMQ url is blank")
 	}
@@ -46,7 +50,6 @@ func NewListener(
 	return &Listener{
 		id:            fmt.Sprintf("%s.%s", appName, uuid.NewString()),
 		appName:       appName,
-		logger:        logger,
 		conn:          conn,
 		ch:            ch,
 		configs:       configs,
@@ -64,7 +67,7 @@ func (l *Listener) Stop() error {
 }
 
 func (l *Listener) StopWithContext(ctx context.Context) error {
-	l.logger.Infof("Stopping listener...")
+	log.Info().Msgf("Stopping listener...")
 	c := make(chan error)
 
 	go func() {
@@ -137,14 +140,14 @@ func (l *Listener) Listen(
 		nil,
 	)
 	if err != nil {
-		l.logger.Errorf("error consuming commands queue: %s", err.Error())
+		log.Error().Msgf("error consuming commands queue: %s", err.Error())
 	}
 
 	go l.cmdsWorker(ctx, cmdsDeliveries)
 
 	eventsQueue, err := bindEvents(l.appName, l.ch, l.eventHandlers)
 	if err != nil {
-		l.logger.Errorf("error consuming events queue: %s", err.Error())
+		log.Error().Msgf("error consuming events queue: %s", err.Error())
 	}
 
 	eventsDeliveries, err := l.ch.Consume(
@@ -157,14 +160,14 @@ func (l *Listener) Listen(
 		nil,
 	)
 	if err != nil {
-		l.logger.Errorf("error consuming events queue: %s", err.Error())
+		log.Error().Msgf("error consuming events queue: %s", err.Error())
 	}
 
 	go l.eventsWorker(ctx, eventsDeliveries)
 
 	queriesQueue, err := bindQueries(l.appName, l.ch)
 	if err != nil {
-		l.logger.Errorf("error consuming events queue: %s", err.Error())
+		log.Error().Msgf("error consuming events queue: %s", err.Error())
 	}
 
 	queriesDeliveries, err := l.ch.Consume(
@@ -177,7 +180,7 @@ func (l *Listener) Listen(
 		nil,
 	)
 	if err != nil {
-		l.logger.Errorf("error consuming queries queue: %s", err.Error())
+		log.Error().Msgf("error consuming queries queue: %s", err.Error())
 	}
 
 	go l.queriesWorker(ctx, queriesDeliveries)
@@ -191,7 +194,7 @@ func (l *Listener) cmdsWorker(
 	ctx context.Context,
 	cMessages <-chan amqp.Delivery,
 ) {
-	l.logger.Infof("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeCmd.String(), (l.cmdHandlers))
+	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeCmd.String(), (l.cmdHandlers))
 	for message := range cMessages {
 		// Pass a copy of msg
 		go func(message amqp.Delivery) {
@@ -211,12 +214,12 @@ func (l *Listener) processCmd(
 	ctx context.Context,
 	message *amqp.Delivery,
 ) {
-	defer defaultRecover(l.logger, message)
+	defer defaultRecover(message)
 
 	cmd := &Cmd{}
 	err := json.Unmarshal(message.Body, cmd)
 	if err != nil {
-		l.logger.Errorf("can not process command %s", err.Error())
+		log.Error().Msgf("can not process command %s", err.Error())
 	}
 
 	handler, ok := l.cmdHandlers[cmd.Data.Name]
@@ -237,7 +240,7 @@ func (l *Listener) eventsWorker(
 	ctx context.Context,
 	cMessages <-chan amqp.Delivery,
 ) {
-	l.logger.Infof("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeEvent.String(), len(l.eventHandlers))
+	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeEvent.String(), len(l.eventHandlers))
 	for message := range cMessages {
 		// Pass a copy of msg
 		go func(message amqp.Delivery) {
@@ -257,12 +260,12 @@ func (l *Listener) processEvent(
 	ctx context.Context,
 	message *amqp.Delivery,
 ) {
-	defer defaultRecover(l.logger, message)
+	defer defaultRecover(message)
 
 	event := &Event{}
 	err := json.Unmarshal(message.Body, event)
 	if err != nil {
-		l.logger.Errorf("can not process message %s", err.Error())
+		log.Error().Msgf("can not process message %s", err.Error())
 	}
 
 	handler, ok := l.eventHandlers[event.Data.Name]
@@ -283,7 +286,7 @@ func (l *Listener) queriesWorker(
 	ctx context.Context,
 	cMessages <-chan amqp.Delivery,
 ) {
-	l.logger.Infof("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeQuery.String(), len(l.eventHandlers))
+	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeQuery.String(), len(l.eventHandlers))
 	for message := range cMessages {
 		// Pass a copy of msg
 		go func(message amqp.Delivery) {
@@ -303,12 +306,12 @@ func (l *Listener) processQuery(
 	ctx context.Context,
 	message *amqp.Delivery,
 ) {
-	defer defaultRecover(l.logger, message)
+	defer defaultRecover(message)
 
 	query := &Query{}
 	err := json.Unmarshal(message.Body, query)
 	if err != nil {
-		l.logger.Errorf("can not process message %s", err.Error())
+		log.Error().Msgf("can not process message %s", err.Error())
 	}
 
 	handler, ok := l.queryHandlers[query.Data.Resource]
@@ -365,7 +368,7 @@ func (l *Listener) publishReply(
 }
 
 func (l *Listener) handleMsgNoHandlers(msg *amqp.Delivery, typ string) {
-	l.logger.Warnf("ignoring message due to no handler registered, message type [%s]", typ)
+	log.Warn().Msgf("ignoring message due to no handler registered, message type [%s]", typ)
 
 	if l.configs.AckIfNoHandlers {
 		msg.Ack(false)
@@ -376,7 +379,7 @@ func (l *Listener) handleMsgNoHandlers(msg *amqp.Delivery, typ string) {
 }
 
 func (l *Listener) handleErrHandler(msg *amqp.Delivery, typ string, err error) {
-	l.logger.Errorf(
+	log.Error().Msgf(
 		"error in handler for type [%s] while processing command %s",
 		typ,
 		err.Error(),

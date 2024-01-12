@@ -14,7 +14,6 @@ import (
 type Publisher struct {
 	id         string
 	appName    string
-	logger     Logger
 	conn       *amqp.Connection
 	ch         *amqp.Channel
 	configs    *PublisherConfigs
@@ -29,13 +28,11 @@ func (p *Publisher) Stop() {
 // Returns a new `Publisher` instance
 // with the connection and channel set up.
 func NewRabbitPublisher(
-	logger Logger,
 	configs *PublisherConfigs,
 	appName string,
 ) *Publisher {
 	if configs.Url == "" {
-		logger.Errorf("Can not connect to RabbitMQ url is blank")
-		return &Publisher{}
+		panic("Can not connect to RabbitMQ url is blank")
 	}
 
 	conn, err := amqp.Dial(configs.Url)
@@ -46,7 +43,6 @@ func NewRabbitPublisher(
 
 	return &Publisher{
 		id:      fmt.Sprintf("%s.%s", appName, uuid.NewString()),
-		logger:  logger,
 		conn:    conn,
 		ch:      ch,
 		appName: appName,

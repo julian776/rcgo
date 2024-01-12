@@ -2,14 +2,14 @@ package rcgo
 
 import (
 	"fmt"
-	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rs/zerolog/log"
 )
 
 func failOnError(err error, msg string) {
 	if err != nil {
-		log.Panicf("%s: %s", msg, err)
+		log.Panic().Msgf("%s: %s", msg, err)
 	}
 }
 
@@ -94,9 +94,9 @@ func buildQueueName(appName, suffix string) string {
 	return fmt.Sprintf("%s.%s", appName, suffix)
 }
 
-func defaultRecover(logger Logger, message *amqp.Delivery) {
-	if err := recover(); err != nil {
-		logger.Errorf("recover from panic on listener error: %s", err.(error).Error())
+func defaultRecover(message *amqp.Delivery) {
+	if err := recover().(error); err != nil {
+		log.Err(err).Msg("recover from panic on listener")
 		message.Reject(true)
 	}
 }
