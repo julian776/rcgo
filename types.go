@@ -46,8 +46,7 @@ type Event struct {
 	Source         string
 	Type           string
 	GenerationTime time.Time
-	Broker         string
-	Data           eventBody
+	Data           interface{}
 }
 
 type eventBody struct {
@@ -62,8 +61,7 @@ type Cmd struct {
 	Target         string
 	Type           string
 	GenerationTime time.Time
-	Broker         string
-	Data           cmdBody
+	Data           interface{}
 }
 
 type cmdBody struct {
@@ -77,8 +75,7 @@ type Query struct {
 	Target         string
 	Type           string
 	GenerationTime time.Time
-	Broker         string
-	Data           queryBody
+	Data           interface{}
 }
 
 type queryBody struct {

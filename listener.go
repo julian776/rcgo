@@ -67,7 +67,8 @@ func (l *Listener) Stop() error {
 }
 
 func (l *Listener) StopWithContext(ctx context.Context) error {
-	log.Info().Msgf("Stopping listener...")
+	fmt.Printf("[LISTENER]Stopping %s...\n", l.appName)
+
 	c := make(chan error)
 
 	go func() {
@@ -115,6 +116,8 @@ func (l *Listener) AddQueryHandler(
 func (l *Listener) Listen(
 	ctx context.Context,
 ) error {
+	fmt.Printf("[LISTENER]Starting %s...\n", l.appName)
+
 	err := declareExchanges(l.ch)
 	if err != nil {
 		return fmt.Errorf("error declaring exchanges: %s", err.Error())
@@ -132,7 +135,7 @@ func (l *Listener) Listen(
 
 	cmdsDeliveries, err := l.ch.Consume(
 		cmdsQueue.Name,
-		l.id,
+		fmt.Sprintf("%s.%s", l.appName, uuid.NewString()),
 		false,
 		false,
 		false,
@@ -152,7 +155,7 @@ func (l *Listener) Listen(
 
 	eventsDeliveries, err := l.ch.Consume(
 		eventsQueue.Name,
-		l.id,
+		fmt.Sprintf("%s.%s", l.appName, uuid.NewString()),
 		false,
 		false,
 		false,
@@ -172,7 +175,7 @@ func (l *Listener) Listen(
 
 	queriesDeliveries, err := l.ch.Consume(
 		queriesQueue.Name,
-		l.id,
+		fmt.Sprintf("%s.%s", l.appName, uuid.NewString()),
 		false,
 		false,
 		false,
@@ -194,7 +197,7 @@ func (l *Listener) cmdsWorker(
 	ctx context.Context,
 	cMessages <-chan amqp.Delivery,
 ) {
-	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeCmd.String(), (l.cmdHandlers))
+	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeCmd.String(), len(l.cmdHandlers))
 	for message := range cMessages {
 		// Pass a copy of msg
 		go func(message amqp.Delivery) {
@@ -216,21 +219,30 @@ func (l *Listener) processCmd(
 ) {
 	defer defaultRecover(message)
 
-	cmd := &Cmd{}
-	err := json.Unmarshal(message.Body, cmd)
+	cmdBody := &cmdBody{}
+	err := json.Unmarshal(message.Body, cmdBody)
 	if err != nil {
 		log.Error().Msgf("can not process command %s", err.Error())
 	}
 
-	handler, ok := l.cmdHandlers[cmd.Data.Name]
+	cmd := &Cmd{
+		Id:             cmdBody.CmdId,
+		Source:         message.AppId,
+		Target:         message.RoutingKey,
+		GenerationTime: message.Timestamp,
+		Type:           cmdBody.Name,
+		Data:           cmdBody.Data,
+	}
+
+	handler, ok := l.cmdHandlers[cmd.Type]
 	if !ok {
-		l.handleMsgNoHandlers(message, cmd.Data.Name)
+		l.handleMsgNoHandlers(message, cmd.Type)
 		return
 	}
 
 	err = handler(ctx, cmd)
 	if err != nil {
-		l.handleErrHandler(message, cmd.Data.Name, err)
+		l.handleErrHandler(message, cmd.Type, err)
 	}
 
 	message.Ack(false)
@@ -262,21 +274,29 @@ func (l *Listener) processEvent(
 ) {
 	defer defaultRecover(message)
 
-	event := &Event{}
-	err := json.Unmarshal(message.Body, event)
+	eventBody := &eventBody{}
+	err := json.Unmarshal(message.Body, eventBody)
 	if err != nil {
 		log.Error().Msgf("can not process message %s", err.Error())
 	}
 
-	handler, ok := l.eventHandlers[event.Data.Name]
+	event := &Event{
+		Id:             eventBody.Id,
+		Source:         message.AppId,
+		GenerationTime: message.Timestamp,
+		Type:           eventBody.Name,
+		Data:           eventBody.Data,
+	}
+
+	handler, ok := l.eventHandlers[event.Type]
 	if !ok {
-		l.handleMsgNoHandlers(message, event.Data.Name)
+		l.handleMsgNoHandlers(message, event.Type)
 		return
 	}
 
 	err = handler(ctx, event)
 	if err != nil {
-		l.handleErrHandler(message, event.Data.Name, err)
+		l.handleErrHandler(message, event.Type, err)
 	}
 
 	message.Ack(false)
@@ -308,27 +328,43 @@ func (l *Listener) processQuery(
 ) {
 	defer defaultRecover(message)
 
-	query := &Query{}
-	err := json.Unmarshal(message.Body, query)
+	queryBody := &queryBody{}
+	err := json.Unmarshal(message.Body, queryBody)
 	if err != nil {
 		log.Error().Msgf("can not process message %s", err.Error())
 	}
 
-	handler, ok := l.queryHandlers[query.Data.Resource]
+	query := &Query{
+		Source:         message.AppId,
+		Target:         message.RoutingKey,
+		GenerationTime: message.Timestamp,
+		Type:           queryBody.Resource,
+		Data:           queryBody.Data,
+	}
+
+	fmt.Printf("query: %+v", query)
+
+	handler, ok := l.queryHandlers[query.Type]
 	if !ok {
-		l.handleMsgNoHandlers(message, query.Data.Resource)
+		l.handleMsgNoHandlers(message, query.Type)
 		return
 	}
 
+	fmt.Println("QQQQQQQQQQQQQQQ")
+
 	res, err := handler(ctx, query)
 	if err != nil {
-		l.handleErrHandler(message, query.Data.Resource, err)
+		l.handleErrHandler(message, query.Type, err)
 	}
+
+	fmt.Println("QQQQQQQQQQQQQQQ")
 
 	err = l.publishReply(ctx, message.ReplyTo, message.CorrelationId, res)
 	if err != nil {
 		message.Reject(true)
 	}
+
+	fmt.Println("QQQQQQQQQQQQQQQ")
 
 	message.Ack(false)
 }
@@ -339,10 +375,13 @@ func (l *Listener) publishReply(
 	correlationID string,
 	body interface{},
 ) error {
+	fmt.Println("🚀 ~ body:", body)
 	data, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("🚀 ~ replyTo:", replyTo)
 
 	err = l.ch.PublishWithContext(
 		ctx,

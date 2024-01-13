@@ -87,6 +87,11 @@ func bindQueries(appName string, ch *amqp.Channel) (*amqp.Queue, error) {
 		return nil, err
 	}
 
+	err = ch.QueueBind(queue.Name, buildQueueName(appName, queriesQueueSuffix), directMessagesExchange, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	return &queue, nil
 }
 
@@ -95,8 +100,8 @@ func buildQueueName(appName, suffix string) string {
 }
 
 func defaultRecover(message *amqp.Delivery) {
-	if err := recover().(error); err != nil {
-		log.Err(err).Msg("recover from panic on listener")
+	if err := recover(); err != nil {
+		log.Err(err.(error)).Msg("recover from panic on listener")
 		message.Reject(true)
 	}
 }
