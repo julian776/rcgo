@@ -7,4 +7,9 @@ const (
 	eventsQueueSuffix      = "subsEvents"
 	commandsQueueSuffix    = "commands"
 	queriesQueueSuffix     = "query"
+
+	correlationIDHeader = "x-correlation-id"
+	sourceAppHeader     = "sourceApplication"
+	replyIDHeader       = "x-reply_id"
+	serveQueryIDHeader  = "x-serveQuery-id"
 )

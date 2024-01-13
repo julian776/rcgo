@@ -20,7 +20,7 @@ type Listener struct {
 	ch      *amqp.Channel
 	configs ListenerConfigs
 
-	// Keys are the message types
+	// Keys are the msg types
 	cmdHandlers   map[string]CmdHandlerFunc
 	eventHandlers map[string]EventHandlerFunc
 	queryHandlers map[string]QueryHandlerFunc
@@ -108,9 +108,9 @@ func (l *Listener) AddQueryHandler(
 
 // Listens to the apps added and processes
 // the messages received from them.
-// Processes each message using the appropiate
+// Processes each msg using the appropiate
 // handlers registered for its type.
-// If an unexpected message is received, it will
+// If an unexpected msg is received, it will
 // acknowledge it to the server and then ignore it.
 // The method blocks until the context is done.
 func (l *Listener) Listen(
@@ -198,54 +198,54 @@ func (l *Listener) cmdsWorker(
 	cMessages <-chan amqp.Delivery,
 ) {
 	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeCmd.String(), len(l.cmdHandlers))
-	for message := range cMessages {
+	for msg := range cMessages {
 		// Pass a copy of msg
-		go func(message amqp.Delivery) {
-			l.processCmd(ctx, &message)
-		}(message)
+		go func(msg amqp.Delivery) {
+			l.processCmd(ctx, &msg)
+		}(msg)
 	}
 }
 
 // Checks if there is a registered handler for
-// the message type, and if not, it logs a warning
-// and ignores the message.
+// the msg type, and if not, it logs a warning
+// and ignores the msg.
 // If there is a registered handlers, it maps the
-// `amqp.Delivery` message to a domain `Message`
+// `amqp.Delivery` msg to a domain `msg`
 // using a mapper function, and then calls each
 // registered handler.
 func (l *Listener) processCmd(
 	ctx context.Context,
-	message *amqp.Delivery,
+	msg *amqp.Delivery,
 ) {
-	defer defaultRecover(message)
+	defer defaultRecover(msg)
 
 	cmdBody := &cmdBody{}
-	err := json.Unmarshal(message.Body, cmdBody)
+	err := json.Unmarshal(msg.Body, cmdBody)
 	if err != nil {
 		log.Error().Msgf("can not process command %s", err.Error())
 	}
 
 	cmd := &Cmd{
 		Id:             cmdBody.CmdId,
-		Source:         message.AppId,
-		Target:         message.RoutingKey,
-		GenerationTime: message.Timestamp,
+		Source:         msg.AppId,
+		Target:         msg.RoutingKey,
+		GenerationTime: msg.Timestamp,
 		Type:           cmdBody.Name,
 		Data:           cmdBody.Data,
 	}
 
 	handler, ok := l.cmdHandlers[cmd.Type]
 	if !ok {
-		l.handleMsgNoHandlers(message, cmd.Type)
+		l.handleMsgNoHandlers(msg, cmd.Type)
 		return
 	}
 
 	err = handler(ctx, cmd)
 	if err != nil {
-		l.handleErrHandler(message, cmd.Type, err)
+		l.handleErrHandler(msg, cmd.Type, err)
 	}
 
-	message.Ack(false)
+	msg.Ack(false)
 }
 
 func (l *Listener) eventsWorker(
@@ -253,53 +253,53 @@ func (l *Listener) eventsWorker(
 	cMessages <-chan amqp.Delivery,
 ) {
 	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeEvent.String(), len(l.eventHandlers))
-	for message := range cMessages {
+	for msg := range cMessages {
 		// Pass a copy of msg
-		go func(message amqp.Delivery) {
-			l.processEvent(ctx, &message)
-		}(message)
+		go func(msg amqp.Delivery) {
+			l.processEvent(ctx, &msg)
+		}(msg)
 	}
 }
 
 // processEvent Checks if there is a registered handler for
-// the message type, and if not, it logs a warning
-// and ignores the message.
+// the msg type, and if not, it logs a warning
+// and ignores the msg.
 // If there is a registered handlers, it maps the
-// `amqp.Delivery` message to a domain `Message`
+// `amqp.Delivery` msg to a domain `msg`
 // using a mapper function, and then calls each
 // registered handler.
 func (l *Listener) processEvent(
 	ctx context.Context,
-	message *amqp.Delivery,
+	msg *amqp.Delivery,
 ) {
-	defer defaultRecover(message)
+	defer defaultRecover(msg)
 
 	eventBody := &eventBody{}
-	err := json.Unmarshal(message.Body, eventBody)
+	err := json.Unmarshal(msg.Body, eventBody)
 	if err != nil {
-		log.Error().Msgf("can not process message %s", err.Error())
+		log.Error().Msgf("can not process msg %s", err.Error())
 	}
 
 	event := &Event{
 		Id:             eventBody.Id,
-		Source:         message.AppId,
-		GenerationTime: message.Timestamp,
+		Source:         msg.AppId,
+		GenerationTime: msg.Timestamp,
 		Type:           eventBody.Name,
 		Data:           eventBody.Data,
 	}
 
 	handler, ok := l.eventHandlers[event.Type]
 	if !ok {
-		l.handleMsgNoHandlers(message, event.Type)
+		l.handleMsgNoHandlers(msg, event.Type)
 		return
 	}
 
 	err = handler(ctx, event)
 	if err != nil {
-		l.handleErrHandler(message, event.Type, err)
+		l.handleErrHandler(msg, event.Type, err)
 	}
 
-	message.Ack(false)
+	msg.Ack(false)
 }
 
 func (l *Listener) queriesWorker(
@@ -307,37 +307,37 @@ func (l *Listener) queriesWorker(
 	cMessages <-chan amqp.Delivery,
 ) {
 	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeQuery.String(), len(l.eventHandlers))
-	for message := range cMessages {
+	for msg := range cMessages {
 		// Pass a copy of msg
-		go func(message amqp.Delivery) {
-			l.processQuery(ctx, &message)
-		}(message)
+		go func(msg amqp.Delivery) {
+			l.processQuery(ctx, &msg)
+		}(msg)
 	}
 }
 
 // processQuery Checks if there is a registered handler for
-// the message type, and if not, it logs a warning
-// and ignores the message.
+// the msg type, and if not, it logs a warning
+// and ignores the msg.
 // If there is a registered handlers, it maps the
-// `amqp.Delivery` message to a domain `Message`
+// `amqp.Delivery` msg to a domain `msg`
 // using a mapper function, and then calls each
 // registered handler.
 func (l *Listener) processQuery(
 	ctx context.Context,
-	message *amqp.Delivery,
+	msg *amqp.Delivery,
 ) {
-	defer defaultRecover(message)
+	defer defaultRecover(msg)
 
 	queryBody := &queryBody{}
-	err := json.Unmarshal(message.Body, queryBody)
+	err := json.Unmarshal(msg.Body, queryBody)
 	if err != nil {
-		log.Error().Msgf("can not process message %s", err.Error())
+		log.Error().Msgf("can not process msg %s", err.Error())
 	}
 
 	query := &Query{
-		Source:         message.AppId,
-		Target:         message.RoutingKey,
-		GenerationTime: message.Timestamp,
+		Source:         msg.AppId,
+		Target:         msg.RoutingKey,
+		GenerationTime: msg.Timestamp,
 		Type:           queryBody.Resource,
 		Data:           queryBody.Data,
 	}
@@ -346,7 +346,7 @@ func (l *Listener) processQuery(
 
 	handler, ok := l.queryHandlers[query.Type]
 	if !ok {
-		l.handleMsgNoHandlers(message, query.Type)
+		l.handleMsgNoHandlers(msg, query.Type)
 		return
 	}
 
@@ -354,19 +354,26 @@ func (l *Listener) processQuery(
 
 	res, err := handler(ctx, query)
 	if err != nil {
-		l.handleErrHandler(message, query.Type, err)
+		l.handleErrHandler(msg, query.Type, err)
 	}
 
 	fmt.Println("QQQQQQQQQQQQQQQ")
 
-	err = l.publishReply(ctx, message.ReplyTo, message.CorrelationId, res)
+	corrId := msg.CorrelationId
+	if corrId == "" {
+		corrId, ok := msg.Headers[correlationIDHeader].(string)
+		if !ok || corrId == "" {
+			msg.Ack(false)
+			return
+		}
+	}
+
+	err = l.publishReply(ctx, msg.ReplyTo, corrId, res)
 	if err != nil {
-		message.Reject(true)
+		msg.Reject(true)
 	}
 
-	fmt.Println("QQQQQQQQQQQQQQQ")
-
-	message.Ack(false)
+	msg.Ack(false)
 }
 
 func (l *Listener) publishReply(
@@ -375,13 +382,10 @@ func (l *Listener) publishReply(
 	correlationID string,
 	body interface{},
 ) error {
-	fmt.Println("🚀 ~ body:", body)
 	data, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("🚀 ~ replyTo:", replyTo)
 
 	err = l.ch.PublishWithContext(
 		ctx,
@@ -407,7 +411,7 @@ func (l *Listener) publishReply(
 }
 
 func (l *Listener) handleMsgNoHandlers(msg *amqp.Delivery, typ string) {
-	log.Warn().Msgf("ignoring message due to no handler registered, message type [%s]", typ)
+	log.Warn().Msgf("ignoring msg due to no handler registered, msg type [%s]", typ)
 
 	if l.configs.AckIfNoHandlers {
 		msg.Ack(false)

@@ -35,11 +35,12 @@ func mapToAmqp(
 	case MsgTypeQuery:
 		body = queryBody{Resource: msgName, Data: data}
 
-		p.Headers["x-reply_id"] = id
-		p.Headers["x-correlation-id"] = id
-		p.Headers["x-serveQuery-id"] = msgName
+		p.Headers[replyIDHeader] = id
+		p.Headers[correlationIDHeader] = id
+		p.Headers[serveQueryIDHeader] = msgName
 
 		p.ReplyTo = sourceAppName
+		p.CorrelationId = id
 	}
 
 	d, err := json.Marshal(&body)

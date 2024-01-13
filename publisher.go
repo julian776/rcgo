@@ -5,19 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"time"
 
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type Publisher struct {
-	id         string
-	appName    string
-	conn       *amqp.Connection
-	ch         *amqp.Channel
-	configs    *PublisherConfigs
-	repliesMap map[string]interface{}
+	id          string
+	appName     string
+	conn        *amqp.Connection
+	ch          *amqp.Channel
+	configs     *PublisherConfigs
+	replyRouter *replyRouter
 }
 
 func (p *Publisher) Stop() {
@@ -27,7 +26,7 @@ func (p *Publisher) Stop() {
 
 // Returns a new `Publisher` instance
 // with the connection and channel set up.
-func NewRabbitPublisher(
+func NewPublisher(
 	configs *PublisherConfigs,
 	appName string,
 ) *Publisher {
@@ -36,38 +35,32 @@ func NewRabbitPublisher(
 	}
 
 	conn, err := amqp.Dial(configs.Url)
-	failOnError(err, "Failed to connect to RabbitMQ")
+	failOnError(err, "failed to connect to RabbitMQ")
 
 	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
+	failOnError(err, "failed to open a channel")
+
+	replyRouter := newReplyRouter(
+		conn,
+		appName,
+		configs.ReplyTimeout.Abs(),
+	)
+
+	err = replyRouter.listen()
+	failOnError(err, "failed to listen for replies")
 
 	return &Publisher{
-		id:      fmt.Sprintf("%s.%s", appName, uuid.NewString()),
-		conn:    conn,
-		ch:      ch,
-		appName: appName,
-		configs: configs,
+		id:          fmt.Sprintf("%s.%s", appName, uuid.NewString()),
+		conn:        conn,
+		ch:          ch,
+		appName:     appName,
+		configs:     configs,
+		replyRouter: replyRouter,
 	}
 }
 
-func (p *Publisher) queueDeclare(queueName string) error {
-	_, err := p.ch.QueueDeclare(
-		queueName, // name
-		false,     // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
-	)
-	if err != nil {
-		return fmt.Errorf("failed to declare a queue: %s", err.Error())
-	}
-
-	return nil
-}
-
-// PublishCmd publishes a command to a specified app in RabbitMQ
-func (p *Publisher) PublishCmd(
+// SendCmd publishes a command to a specified app in RabbitMQ
+func (p *Publisher) SendCmd(
 	ctx context.Context,
 	appTarget string,
 	cmd string,
@@ -137,13 +130,15 @@ func (p *Publisher) RequestReply(
 		return fmt.Errorf("res value must be a pointer")
 	}
 
-	correlationId := uuid.New().String()
+	correlationId := uuid.NewString()
 
 	body, err := mapToAmqp(
 		correlationId,
-		p.appName,
+
+		// We pass replyRouter id. no Publisher appName
+		p.replyRouter.id,
 		query,
-		MsgTypeEvent,
+		MsgTypeQuery,
 		data,
 	)
 	if err != nil {
@@ -152,7 +147,7 @@ func (p *Publisher) RequestReply(
 
 	err = p.ch.PublishWithContext(
 		ctx,
-		globalReplyExchange, // exchange
+		directMessagesExchange, // exchange
 		buildQueueName(appTarget, queriesQueueSuffix), // routing key
 		false, // mandatory
 		false, // immediate
@@ -162,33 +157,20 @@ func (p *Publisher) RequestReply(
 		return err
 	}
 
-	responseChannel := make(chan []byte)
-	p.repliesMap[correlationId] = responseChannel
+	resCh := p.replyRouter.addReplyToListen(query, correlationId)
 
-	delay := time.NewTimer(time.Second * p.configs.ReplyTimeout)
+	reply := <-resCh
 
-	select {
-	case <-delay.C:
-		err = fmt.Errorf("timeout while waiting for reply %s", query)
-	case responsePayload := <-responseChannel:
-		if string(responsePayload) == "" || string(responsePayload) == "null" {
-			err = fmt.Errorf("data not found [%s]", query)
-
-			break
-		}
-
-		err = json.Unmarshal(responsePayload, res)
-
-		if err != nil {
+	if reply.err != nil {
+		if err, ok := reply.err.(*TimeoutReplyError); ok {
 			return err
-		}
-
-		if !delay.Stop() {
-			<-delay.C
 		}
 	}
 
-	delete(p.repliesMap, correlationId)
+	err = json.Unmarshal(reply.data, res)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return nil
 }
