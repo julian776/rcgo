@@ -10,8 +10,9 @@ import (
 )
 
 type reply struct {
-	data []byte
-	err  error
+	query string
+	data  []byte
+	err   error
 }
 
 type replyStr struct {
@@ -115,17 +116,21 @@ func (r *replyRouter) listen() error {
 			}
 
 			if replyStr, ok := r.repliesMap[corrId]; ok {
+				// Verify if the timeout has already elapsed.
 				if !replyStr.timer.Stop() {
 					m.Ack(false)
 					continue
 				}
 
 				replyStr.ch <- &reply{
-					data: m.Body,
-					err:  nil,
+					query: replyStr.query,
+					data:  m.Body,
+					err:   nil,
 				}
 
 				close(replyStr.ch)
+
+				delete(r.repliesMap, corrId)
 
 				m.Ack(false)
 			}
