@@ -130,34 +130,10 @@ func (p *Publisher) RequestReply(
 		return fmt.Errorf("res value must be a pointer")
 	}
 
-	correlationId := uuid.NewString()
-
-	body, err := mapToAmqp(
-		correlationId,
-
-		// We pass replyRouter id. no Publisher appName
-		p.replyRouter.id,
-		query,
-		MsgTypeQuery,
-		data,
-	)
-	if err != nil {
-		return fmt.Errorf("command can not be parsed")
-	}
-
-	err = p.ch.PublishWithContext(
-		ctx,
-		directMessagesExchange, // exchange
-		buildQueueName(appTarget, queriesQueueSuffix), // routing key
-		false, // mandatory
-		false, // immediate
-		*body,
-	)
+	resCh, err := p.RequestReplyC(ctx, appTarget, query, data)
 	if err != nil {
 		return err
 	}
-
-	resCh := p.replyRouter.addReplyToListen(query, correlationId)
 
 	reply := <-resCh
 
@@ -173,4 +149,39 @@ func (p *Publisher) RequestReply(
 	}
 
 	return nil
+}
+
+// PublishCmd publishes a command to a specified app in RabbitMQ
+func (p *Publisher) RequestReplyC(
+	ctx context.Context,
+	appTarget string,
+	query string,
+	data interface{},
+) (chan *reply, error) {
+	correlationId := uuid.NewString()
+
+	body, err := mapToAmqp(
+		correlationId,
+		p.replyRouter.id,
+		query,
+		MsgTypeQuery,
+		data,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("command can not be parsed")
+	}
+
+	err = p.ch.PublishWithContext(
+		ctx,
+		directMessagesExchange, // exchange
+		buildQueueName(appTarget, queriesQueueSuffix), // routing key
+		false, // mandatory
+		false, // immediate
+		*body,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return p.replyRouter.addReplyToListen(query, correlationId), nil
 }

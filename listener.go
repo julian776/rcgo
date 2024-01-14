@@ -395,8 +395,8 @@ func (l *Listener) publishReply(
 		false,               // immediate
 		amqp.Publishing{
 			Headers: map[string]interface{}{
-				"sourceApplicationHeader": l.appName,
-				"correlationIDHeader":     correlationID,
+				sourceAppHeader:     l.appName,
+				correlationIDHeader: correlationID,
 			},
 			ContentType:   "application/json",
 			CorrelationId: correlationID,
