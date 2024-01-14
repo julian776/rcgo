@@ -78,7 +78,7 @@ func (l *Listener) StopWithContext(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return errors.New("error: ctx expired while closing stopping listener")
+			return errors.New("error: ctx expired while stopping listener")
 		case err := <-c:
 			return err
 		}
@@ -206,13 +206,6 @@ func (l *Listener) cmdsWorker(
 	}
 }
 
-// Checks if there is a registered handler for
-// the msg type, and if not, it logs a warning
-// and ignores the msg.
-// If there is a registered handlers, it maps the
-// `amqp.Delivery` msg to a domain `msg`
-// using a mapper function, and then calls each
-// registered handler.
 func (l *Listener) processCmd(
 	ctx context.Context,
 	msg *amqp.Delivery,
@@ -261,13 +254,6 @@ func (l *Listener) eventsWorker(
 	}
 }
 
-// processEvent Checks if there is a registered handler for
-// the msg type, and if not, it logs a warning
-// and ignores the msg.
-// If there is a registered handlers, it maps the
-// `amqp.Delivery` msg to a domain `msg`
-// using a mapper function, and then calls each
-// registered handler.
 func (l *Listener) processEvent(
 	ctx context.Context,
 	msg *amqp.Delivery,
@@ -315,13 +301,6 @@ func (l *Listener) queriesWorker(
 	}
 }
 
-// processQuery Checks if there is a registered handler for
-// the msg type, and if not, it logs a warning
-// and ignores the msg.
-// If there is a registered handlers, it maps the
-// `amqp.Delivery` msg to a domain `msg`
-// using a mapper function, and then calls each
-// registered handler.
 func (l *Listener) processQuery(
 	ctx context.Context,
 	msg *amqp.Delivery,
@@ -342,22 +321,16 @@ func (l *Listener) processQuery(
 		Data:           queryBody.Data,
 	}
 
-	fmt.Printf("query: %+v", query)
-
 	handler, ok := l.queryHandlers[query.Type]
 	if !ok {
 		l.handleMsgNoHandlers(msg, query.Type)
 		return
 	}
 
-	fmt.Println("QQQQQQQQQQQQQQQ")
-
 	res, err := handler(ctx, query)
 	if err != nil {
 		l.handleErrHandler(msg, query.Type, err)
 	}
-
-	fmt.Println("QQQQQQQQQQQQQQQ")
 
 	corrId := msg.CorrelationId
 	if corrId == "" {

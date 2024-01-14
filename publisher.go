@@ -89,7 +89,7 @@ func (p *Publisher) SendCmd(
 	return err
 }
 
-// PublishEvent publishes a event to a specified app in RabbitMQ
+// PublishEvent publishes an event to the message broker.
 func (p *Publisher) PublishEvent(
 	ctx context.Context,
 	event string,
@@ -118,7 +118,10 @@ func (p *Publisher) PublishEvent(
 	return err
 }
 
-// PublishCmd publishes a command to a specified app in RabbitMQ
+// RequestReply function serves as a wrapper
+// for [rcgo.RequestReplyC] managing response
+// handling and returning the reply through
+// the `res` parameter.
 func (p *Publisher) RequestReply(
 	ctx context.Context,
 	appTarget string,
@@ -151,7 +154,32 @@ func (p *Publisher) RequestReply(
 	return nil
 }
 
-// PublishCmd publishes a command to a specified app in RabbitMQ
+// RequestReplyC sends a request to a specific
+// application target, expecting a reply and
+// providing a channel to receive the reply
+// asynchronously.
+//
+// When using the returned reply channel, ensure
+// to handle closure events.
+// The channel will be closed when a reply is
+// received or when a timeout occurs.
+// Listen for the [rcgo.TimeoutReplyError]
+// error on the reply to appropriately handle it.
+//
+// Example:
+//
+//	reply := <-resCh
+//
+//	if reply.err != nil {
+//		if err, ok := reply.err.(*TimeoutReplyError); ok {
+//			return err
+//		}
+//	 }
+//
+//	err = json.Unmarshal(reply.data, res)
+//	if err != nil {
+//		return err
+//	}
 func (p *Publisher) RequestReplyC(
 	ctx context.Context,
 	appTarget string,
