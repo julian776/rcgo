@@ -123,70 +123,76 @@ func (l *Listener) Listen(
 		return fmt.Errorf("error declaring exchanges: %s", err.Error())
 	}
 
-	cmdsQueue, err := bindCommands(l.appName, l.ch)
-	if err != nil {
-		return fmt.Errorf("error consuming commands queue: %s", err.Error())
-	}
-
 	err = l.ch.Qos(15, 0, false)
 	if err != nil {
 		return err
 	}
 
-	cmdsDeliveries, err := l.ch.Consume(
-		cmdsQueue.Name,
-		fmt.Sprintf("%s.%s", l.appName, uuid.NewString()),
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
+	cmdsQueue, err := bindCommands(l.appName, l.ch)
 	if err != nil {
-		log.Error().Msgf("error consuming commands queue: %s", err.Error())
+		return fmt.Errorf("error consuming commands queue: %s", err.Error())
 	}
 
-	go l.cmdsWorker(ctx, cmdsDeliveries)
+	if len(l.cmdHandlers) > 0 {
+		cmdsDeliveries, err := l.ch.Consume(
+			cmdsQueue.Name,
+			fmt.Sprintf("%s.%s", l.appName, uuid.NewString()),
+			false,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			log.Error().Msgf("error consuming commands queue: %s", err.Error())
+		}
+
+		go l.cmdsWorker(ctx, cmdsDeliveries)
+	}
 
 	eventsQueue, err := bindEvents(l.appName, l.ch, l.eventHandlers)
 	if err != nil {
 		log.Error().Msgf("error consuming events queue: %s", err.Error())
 	}
 
-	eventsDeliveries, err := l.ch.Consume(
-		eventsQueue.Name,
-		fmt.Sprintf("%s.%s", l.appName, uuid.NewString()),
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		log.Error().Msgf("error consuming events queue: %s", err.Error())
-	}
+	if len(l.eventHandlers) > 0 {
+		eventsDeliveries, err := l.ch.Consume(
+			eventsQueue.Name,
+			fmt.Sprintf("%s.%s", l.appName, uuid.NewString()),
+			false,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			log.Error().Msgf("error consuming events queue: %s", err.Error())
+		}
 
-	go l.eventsWorker(ctx, eventsDeliveries)
+		go l.eventsWorker(ctx, eventsDeliveries)
+	}
 
 	queriesQueue, err := bindQueries(l.appName, l.ch)
 	if err != nil {
 		log.Error().Msgf("error consuming events queue: %s", err.Error())
 	}
 
-	queriesDeliveries, err := l.ch.Consume(
-		queriesQueue.Name,
-		fmt.Sprintf("%s.%s", l.appName, uuid.NewString()),
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		log.Error().Msgf("error consuming queries queue: %s", err.Error())
-	}
+	if len(l.queryHandlers) > 0 {
+		queriesDeliveries, err := l.ch.Consume(
+			queriesQueue.Name,
+			fmt.Sprintf("%s.%s", l.appName, uuid.NewString()),
+			false,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			log.Error().Msgf("error consuming queries queue: %s", err.Error())
+		}
 
-	go l.queriesWorker(ctx, queriesDeliveries)
+		go l.queriesWorker(ctx, queriesDeliveries)
+	}
 
 	<-ctx.Done()
 
