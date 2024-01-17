@@ -300,7 +300,7 @@ func (l *Listener) queriesWorker(
 	ctx context.Context,
 	cMessages <-chan amqp.Delivery,
 ) {
-	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeQuery.String(), len(l.eventHandlers))
+	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeQuery.String(), len(l.queryHandlers))
 	for msg := range cMessages {
 		// Pass a copy of msg
 		go func(msg amqp.Delivery) {
