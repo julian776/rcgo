@@ -22,7 +22,24 @@ type ListenerConfigs struct {
 	LogLevel string
 }
 
+func NewListenerDefaultConfigs(url string) *ListenerConfigs {
+	return &ListenerConfigs{
+		Url:             url,
+		AckIfNoHandlers: true,
+		DelayOnReject:   5 * time.Second,
+		Timezone:        time.UTC,
+		LogLevel:        "info",
+	}
+}
+
 type PublisherConfigs struct {
 	Url          string
 	ReplyTimeout time.Duration
+}
+
+func NewPublisherDefaultConfigs(url string) *PublisherConfigs {
+	return &PublisherConfigs{
+		Url:          url,
+		ReplyTimeout: 15 * time.Second,
+	}
 }
