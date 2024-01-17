@@ -24,6 +24,8 @@ func main() {
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*60)
 
+	p.Start(ctx)
+
 	data := map[string]string{
 		"app":       "reactive-commons-go",
 		"shortname": "rcgo",

@@ -24,8 +24,6 @@ func (p *Publisher) Stop() {
 	p.ch.Close()
 }
 
-// Returns a new `Publisher` instance
-// with the connection and channel set up.
 func NewPublisher(
 	configs *PublisherConfigs,
 	appName string,
@@ -47,6 +45,8 @@ func NewPublisher(
 	}
 }
 
+// Start establishes a connection to the RabbitMQ server.
+// It should be invoked before publishing any messages.
 func (p *Publisher) Start(
 	ctx context.Context,
 ) {
