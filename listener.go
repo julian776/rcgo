@@ -224,6 +224,8 @@ func (l *Listener) processCmd(
 	err := json.Unmarshal(msg.Body, cmdBody)
 	if err != nil {
 		log.Error().Msgf("can not process command %s", err.Error())
+		msg.Reject(false)
+		return
 	}
 
 	cmd := &Cmd{
@@ -272,6 +274,8 @@ func (l *Listener) processEvent(
 	err := json.Unmarshal(msg.Body, eventBody)
 	if err != nil {
 		log.Error().Msgf("can not process msg %s", err.Error())
+		msg.Reject(false)
+		return
 	}
 
 	event := &Event{
@@ -291,6 +295,7 @@ func (l *Listener) processEvent(
 	err = handler(ctx, event)
 	if err != nil {
 		l.handleErrHandler(msg, event.Type, err)
+		return
 	}
 
 	msg.Ack(false)
@@ -319,6 +324,8 @@ func (l *Listener) processQuery(
 	err := json.Unmarshal(msg.Body, queryBody)
 	if err != nil {
 		log.Error().Msgf("can not process msg %s", err.Error())
+		msg.Reject(false)
+		return
 	}
 
 	query := &Query{
@@ -338,13 +345,14 @@ func (l *Listener) processQuery(
 	res, err := handler(ctx, query)
 	if err != nil {
 		l.handleErrHandler(msg, query.Type, err)
+		return
 	}
 
 	corrId := msg.CorrelationId
 	if corrId == "" {
 		corrId, ok := msg.Headers[correlationIDHeader].(string)
 		if !ok || corrId == "" {
-			msg.Ack(false)
+			msg.Reject(false)
 			return
 		}
 	}
@@ -352,6 +360,7 @@ func (l *Listener) processQuery(
 	err = l.publishReply(ctx, msg.ReplyTo, corrId, res)
 	if err != nil {
 		msg.Reject(true)
+		return
 	}
 
 	msg.Ack(false)
