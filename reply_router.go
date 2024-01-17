@@ -32,7 +32,6 @@ type replyRouter struct {
 }
 
 func newReplyRouter(
-	conn *amqp.Connection,
 	appName string,
 	timeout time.Duration,
 ) *replyRouter {
@@ -40,18 +39,19 @@ func newReplyRouter(
 		log.Warn().Msg("Be careful. Your timeout is too short, please consider give enough timeout to your replies.")
 	}
 
-	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a reply channel")
-
 	return &replyRouter{
 		id:         fmt.Sprintf("%s.%s", appName, uuid.NewString()),
-		ch:         ch,
 		repliesMap: make(repliesMap),
 		timeout:    timeout,
 	}
 }
 
-func (r *replyRouter) listen() error {
+func (r *replyRouter) listen(conn *amqp.Connection) error {
+	ch, err := conn.Channel()
+	failOnError(err, "Failed to open a reply channel")
+
+	r.ch = ch
+
 	queriesQueue, err := r.ch.QueueDeclare(
 		r.id,  // name
 		true,  // durable

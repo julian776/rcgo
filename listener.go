@@ -39,19 +39,9 @@ func NewListener(
 		panic("Can not connect to RabbitMQ url is blank")
 	}
 
-	formattedUrl := strings.Replace(configs.Url, "\r", "", -1)
-
-	conn, err := amqp.Dial(formattedUrl)
-	failOnError(err, "Failed to connect to RabbitMQ")
-
-	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
-
 	return &Listener{
 		id:            fmt.Sprintf("%s.%s", appName, uuid.NewString()),
 		appName:       appName,
-		conn:          conn,
-		ch:            ch,
 		configs:       configs,
 		cmdHandlers:   make(map[string]CmdHandlerFunc),
 		eventHandlers: make(map[string]EventHandlerFunc),
@@ -118,7 +108,19 @@ func (l *Listener) Listen(
 ) error {
 	fmt.Printf("[LISTENER]Starting %s...\n", l.appName)
 
-	err := declareExchanges(l.ch)
+	formattedUrl := strings.Replace(l.configs.Url, "\r", "", -1)
+
+	conn, err := amqp.Dial(formattedUrl)
+	failOnError(err, "Failed to connect to RabbitMQ")
+
+	l.conn = conn
+
+	ch, err := conn.Channel()
+	failOnError(err, "Failed to open a channel")
+
+	l.ch = ch
+
+	err = declareExchanges(l.ch)
 	if err != nil {
 		return fmt.Errorf("error declaring exchanges: %s", err.Error())
 	}

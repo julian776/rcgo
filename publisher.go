@@ -34,29 +34,34 @@ func NewPublisher(
 		panic("Can not connect to RabbitMQ url is blank")
 	}
 
-	conn, err := amqp.Dial(configs.Url)
-	failOnError(err, "failed to connect to RabbitMQ")
-
-	ch, err := conn.Channel()
-	failOnError(err, "failed to open a channel")
-
 	replyRouter := newReplyRouter(
-		conn,
 		appName,
 		configs.ReplyTimeout.Abs(),
 	)
 
-	err = replyRouter.listen()
-	failOnError(err, "failed to listen for replies")
-
 	return &Publisher{
 		id:          fmt.Sprintf("%s.%s", appName, uuid.NewString()),
-		conn:        conn,
-		ch:          ch,
 		appName:     appName,
 		configs:     configs,
 		replyRouter: replyRouter,
 	}
+}
+
+func (p *Publisher) Start(
+	ctx context.Context,
+) {
+	conn, err := amqp.Dial(p.configs.Url)
+	failOnError(err, "failed to connect to RabbitMQ")
+
+	p.conn = conn
+
+	ch, err := conn.Channel()
+	failOnError(err, "failed to open a channel")
+
+	p.ch = ch
+
+	err = p.replyRouter.listen(conn)
+	failOnError(err, "failed to listen for replies")
 }
 
 // SendCmd publishes a command to a specified app in RabbitMQ
