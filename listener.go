@@ -224,7 +224,7 @@ func (l *Listener) processCmd(
 	err := json.Unmarshal(msg.Body, cmdBody)
 	if err != nil {
 		log.Error().Msgf("can not process command %s", err.Error())
-		msg.Reject(false)
+		l.rejectMsg(msg, false)
 		return
 	}
 
@@ -274,7 +274,7 @@ func (l *Listener) processEvent(
 	err := json.Unmarshal(msg.Body, eventBody)
 	if err != nil {
 		log.Error().Msgf("can not process msg %s", err.Error())
-		msg.Reject(false)
+		l.rejectMsg(msg, false)
 		return
 	}
 
@@ -324,7 +324,7 @@ func (l *Listener) processQuery(
 	err := json.Unmarshal(msg.Body, queryBody)
 	if err != nil {
 		log.Error().Msgf("can not process msg %s", err.Error())
-		msg.Reject(false)
+		l.rejectMsg(msg, false)
 		return
 	}
 
@@ -352,14 +352,14 @@ func (l *Listener) processQuery(
 	if corrId == "" {
 		corrId, ok := msg.Headers[correlationIDHeader].(string)
 		if !ok || corrId == "" {
-			msg.Reject(false)
+			l.rejectMsg(msg, false)
 			return
 		}
 	}
 
 	err = l.publishReply(ctx, msg.ReplyTo, corrId, res)
 	if err != nil {
-		msg.Reject(true)
+		l.rejectMsg(msg, true)
 		return
 	}
 
@@ -406,8 +406,7 @@ func (l *Listener) handleMsgNoHandlers(msg *amqp.Delivery, typ string) {
 	if l.configs.AckIfNoHandlers {
 		msg.Ack(false)
 	} else {
-		time.Sleep(l.configs.DelayOnReject.Abs())
-		msg.Reject(true)
+		l.rejectMsg(msg, true)
 	}
 }
 
@@ -418,6 +417,13 @@ func (l *Listener) handleErrHandler(msg *amqp.Delivery, typ string, err error) {
 		err.Error(),
 	)
 
+	l.rejectMsg(msg, true)
+}
+
+// rejectMsg aims to establish a standardized
+// method for rejecting messages while utilizing
+// user-defined configurations.
+func (l *Listener) rejectMsg(msg *amqp.Delivery, requeue bool) {
 	time.Sleep(l.configs.DelayOnReject.Abs())
-	msg.Reject(true)
+	msg.Reject(requeue)
 }
