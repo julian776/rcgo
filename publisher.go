@@ -145,13 +145,13 @@ func (p *Publisher) RequestReply(
 
 	reply := <-resCh
 
-	if reply.err != nil {
-		if err, ok := reply.err.(*TimeoutReplyError); ok {
+	if reply.Err != nil {
+		if err, ok := reply.Err.(*TimeoutReplyError); ok {
 			return err
 		}
 	}
 
-	err = json.Unmarshal(reply.data, res)
+	err = json.Unmarshal(reply.Data, res)
 	if err != nil {
 		return err
 	}
@@ -175,8 +175,8 @@ func (p *Publisher) RequestReply(
 //
 //	reply := <-resCh
 //
-//	if reply.err != nil {
-//		if err, ok := reply.err.(*TimeoutReplyError); ok {
+//	if reply.Err != nil {
+//		if err, ok := reply.Err.(*TimeoutReplyError); ok {
 //			return err
 //		}
 //	 }
@@ -190,7 +190,7 @@ func (p *Publisher) RequestReplyC(
 	appTarget string,
 	query string,
 	data interface{},
-) (chan *reply, error) {
+) (chan *Reply, error) {
 	correlationId := uuid.NewString()
 
 	body, err := mapToAmqp(

@@ -9,15 +9,15 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type reply struct {
-	query string
-	data  []byte
-	err   error
+type Reply struct {
+	Query string
+	Data  []byte
+	Err   error
 }
 
 type replyStr struct {
 	query string
-	ch    chan *reply
+	ch    chan *Reply
 
 	// Timer to delete the reply when timeout.
 	timer *time.Timer
@@ -122,10 +122,10 @@ func (r *replyRouter) listen(conn *amqp.Connection) error {
 					continue
 				}
 
-				replyStr.ch <- &reply{
-					query: replyStr.query,
-					data:  m.Body,
-					err:   nil,
+				replyStr.ch <- &Reply{
+					Query: replyStr.query,
+					Data:  m.Body,
+					Err:   nil,
 				}
 
 				close(replyStr.ch)
@@ -140,8 +140,8 @@ func (r *replyRouter) listen(conn *amqp.Connection) error {
 	return nil
 }
 
-func (r *replyRouter) addReplyToListen(query string, correlationId string) chan *reply {
-	ch := make(chan *reply)
+func (r *replyRouter) addReplyToListen(query string, correlationId string) chan *Reply {
+	ch := make(chan *Reply)
 
 	timer := time.AfterFunc(r.timeout, func() {
 		r.cleanReply(correlationId)
@@ -162,8 +162,8 @@ func (r *replyRouter) cleanReply(correlationId string) {
 		return
 	}
 
-	replyStr.ch <- &reply{
-		err: &TimeoutReplyError{
+	replyStr.ch <- &Reply{
+		Err: &TimeoutReplyError{
 			msg: "timeout while waiting for reply " + replyStr.query,
 		},
 	}
