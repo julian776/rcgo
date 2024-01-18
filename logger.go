@@ -10,7 +10,7 @@ import (
 
 func setupLogger(loc *time.Location, level string) error {
 	zerolog.TimestampFunc = func() time.Time {
-		return time.Date(2008, 1, 8, 17, 5, 05, 0, loc)
+		return time.Now().In(loc)
 	}
 
 	lvl, err := zerolog.ParseLevel(level)
