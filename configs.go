@@ -7,11 +7,11 @@ type ListenerConfigs struct {
 
 	// Acknowledge the server as if
 	// the message was successfully
-	// processed. Defaults to `false`.
+	// processed.
 	AckIfNoHandlers bool
 
 	// Time to delay when rejecting
-	// messages to the server, defaults to zero.
+	// messages to the server.
 	DelayOnReject time.Duration
 
 	// Timezone to be used on the listener and the logger.
