@@ -223,8 +223,7 @@ func (l *Listener) processCmd(
 	cmdBody := &cmdBody{}
 	err := json.Unmarshal(msg.Body, cmdBody)
 	if err != nil {
-		log.Error().Msgf("can not process command %s", err.Error())
-		l.rejectMsg(msg, false)
+		l.rejectMsgWithLog(msg, false, "can not process command %s", err.Error())
 		return
 	}
 
@@ -273,8 +272,7 @@ func (l *Listener) processEvent(
 	eventBody := &eventBody{}
 	err := json.Unmarshal(msg.Body, eventBody)
 	if err != nil {
-		log.Error().Msgf("can not process msg %s", err.Error())
-		l.rejectMsg(msg, false)
+		l.rejectMsgWithLog(msg, false, "can not process msg %s", err.Error())
 		return
 	}
 
@@ -323,8 +321,7 @@ func (l *Listener) processQuery(
 	queryBody := &queryBody{}
 	err := json.Unmarshal(msg.Body, queryBody)
 	if err != nil {
-		log.Error().Msgf("can not process msg %s", err.Error())
-		l.rejectMsg(msg, false)
+		l.rejectMsgWithLog(msg, false, "can not process msg %s", err.Error())
 		return
 	}
 
@@ -334,6 +331,15 @@ func (l *Listener) processQuery(
 		GenerationTime: msg.Timestamp,
 		Type:           queryBody.Resource,
 		Data:           queryBody.Data,
+	}
+
+	corrId := msg.CorrelationId
+	if corrId == "" {
+		corrId, ok := msg.Headers[correlationIDHeader].(string)
+		if !ok || corrId == "" {
+			l.rejectMsgWithLog(msg, false, "error: no found correlationID to reply")
+			return
+		}
 	}
 
 	handler, ok := l.queryHandlers[query.Type]
@@ -348,18 +354,9 @@ func (l *Listener) processQuery(
 		return
 	}
 
-	corrId := msg.CorrelationId
-	if corrId == "" {
-		corrId, ok := msg.Headers[correlationIDHeader].(string)
-		if !ok || corrId == "" {
-			l.rejectMsg(msg, false)
-			return
-		}
-	}
-
 	err = l.publishReply(ctx, msg.ReplyTo, corrId, res)
 	if err != nil {
-		l.rejectMsg(msg, true)
+		l.rejectMsgWithLog(msg, true, "error while publishing reply %s", err.Error())
 		return
 	}
 
@@ -411,13 +408,20 @@ func (l *Listener) handleMsgNoHandlers(msg *amqp.Delivery, typ string) {
 }
 
 func (l *Listener) handleErrHandler(msg *amqp.Delivery, typ string, err error) {
-	log.Error().Msgf(
-		"error in handler for type [%s] while processing command %s",
+	l.rejectMsgWithLog(
+		msg,
+		true,
+		"error in handler for type [%s] while processing msg %s",
 		typ,
 		err.Error(),
 	)
+}
 
-	l.rejectMsg(msg, true)
+// rejectMsgWithLog wraps [rcgo.rejectMsg]
+// and adds a log error.
+func (l *Listener) rejectMsgWithLog(msg *amqp.Delivery, requeue bool, format string, v ...interface{}) {
+	log.Error().Msgf(format, v...)
+	l.rejectMsg(msg, requeue)
 }
 
 // rejectMsg aims to establish a standardized
