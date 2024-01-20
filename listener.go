@@ -18,7 +18,7 @@ type Listener struct {
 	appName string
 	conn    *amqp.Connection
 	ch      *amqp.Channel
-	configs ListenerConfigs
+	configs *ListenerConfigs
 
 	// Keys are the msg types
 	cmdHandlers   map[string]CmdHandlerFunc
@@ -27,7 +27,7 @@ type Listener struct {
 }
 
 func NewListener(
-	configs ListenerConfigs,
+	configs *ListenerConfigs,
 	appName string,
 ) *Listener {
 	err := setupLogger(configs.Timezone, configs.LogLevel)

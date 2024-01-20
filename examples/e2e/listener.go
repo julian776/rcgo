@@ -13,7 +13,7 @@ import (
 func main() {
 	lname := "testListener"
 
-	configs := rcgo.ListenerConfigs{
+	configs := &rcgo.ListenerConfigs{
 		Url:             "amqp://user:password@localhost",
 		DelayOnReject:   time.Second * 5,
 		AckIfNoHandlers: true,
