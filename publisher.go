@@ -37,6 +37,9 @@ func NewPublisher(
 		configs.ReplyTimeout.Abs(),
 	)
 
+	err = replyRouter.listen(conn)
+	failOnError(err, "failed to listen for replies")
+
 	return &Publisher{
 		id:          fmt.Sprintf("%s.%s", appName, uuid.NewString()),
 		appName:     appName,

@@ -35,8 +35,8 @@ func newReplyRouter(
 	appName string,
 	timeout time.Duration,
 ) *replyRouter {
-	if timeout < time.Millisecond*500 {
-		log.Warn().Msg("Be careful. Your timeout is too short, please consider give enough timeout to your replies.")
+	if timeout < time.Millisecond*50 {
+		log.Panic().Msg("Your timeout is too short, please consider give enough timeout to your replies.")
 	}
 
 	return &replyRouter{
