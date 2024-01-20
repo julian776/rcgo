@@ -26,7 +26,7 @@ func (s *ListenerTestSuite) SetupSuite() {
 
 	configs := NewListenerDefaultConfigs(url)
 	configs.LogLevel = "disabled"
-	s.l = NewListener(*configs, appName)
+	s.l = NewListener(configs, appName)
 }
 
 func TestListenerTestSuite(t *testing.T) {

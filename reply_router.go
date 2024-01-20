@@ -52,6 +52,19 @@ func (r *replyRouter) listen(conn *amqp.Connection) error {
 
 	r.ch = ch
 
+	err = ch.ExchangeDeclare(
+		globalReplyExchange,
+		"topic",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
 	queriesQueue, err := r.ch.QueueDeclare(
 		r.id,  // name
 		true,  // durable

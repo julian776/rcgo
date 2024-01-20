@@ -38,5 +38,5 @@ func (s *ReplyRouterTestSuite) Test_addReplyToListen() {
 	reply := <-replyCh
 
 	s.WithinDuration(start.Add(timeout), time.Now(), time.Millisecond*10)
-	s.EqualError(reply.err, "timeout while waiting for a reply")
+	s.EqualError(reply.Err, "timeout while waiting for a reply")
 }
