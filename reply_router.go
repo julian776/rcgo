@@ -163,9 +163,7 @@ func (r *replyRouter) cleanReply(correlationId string) {
 	}
 
 	replyStr.ch <- &Reply{
-		Err: &TimeoutReplyError{
-			msg: "timeout while waiting for reply " + replyStr.query,
-		},
+		Err: ErrTimeoutReply,
 	}
 
 	close(replyStr.ch)

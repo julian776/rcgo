@@ -146,7 +146,7 @@ func (p *Publisher) RequestReply(
 	reply := <-resCh
 
 	if reply.Err != nil {
-		if err, ok := reply.Err.(*TimeoutReplyError); ok {
+		if reply.Err == ErrTimeoutReply {
 			return err
 		}
 	}
@@ -168,7 +168,7 @@ func (p *Publisher) RequestReply(
 // to handle closure events.
 // The channel will be closed when a reply is
 // received or when a timeout occurs.
-// Listen for the [rcgo.TimeoutReplyError]
+// Listen for the [rcgo.ErrTimeoutReply]
 // error on the reply to appropriately handle it.
 //
 // Example:
@@ -176,7 +176,7 @@ func (p *Publisher) RequestReply(
 //	reply := <-resCh
 //
 //	if reply.Err != nil {
-//		if err, ok := reply.Err.(*TimeoutReplyError); ok {
+//		if reply.Err == ErrTimeoutReply {
 //			return err
 //		}
 //	 }

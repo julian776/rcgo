@@ -1,27 +1,7 @@
 package rcgo
 
-type TimeoutReplyError struct {
-	msg string
-}
+import "errors"
 
-func (e *TimeoutReplyError) Error() string {
-	if e.msg == "" {
-		e.msg = "timeout while waiting for a reply"
-	}
-
-	return e.msg
-}
-
-//////////////////////////////////////
-
-// type NoContentReplyError struct {
-// 	msg string
-// }
-
-// func (e *TimeoutReplyError) Error() string {
-// 	if e.msg == "" {
-// 		e.msg = "timeout while waiting for a response."
-// 	}
-
-// 	return e.msg
-// }
+var (
+	ErrTimeoutReply = errors.New("timeout while waiting for a reply")
+)
