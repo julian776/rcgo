@@ -3,8 +3,10 @@ package rcgo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -19,9 +21,30 @@ type Publisher struct {
 	replyRouter *replyRouter
 }
 
-func (p *Publisher) Stop() {
-	p.conn.Close()
-	p.ch.Close()
+func (p *Publisher) Stop() error {
+	ctx := context.Background()
+	ctx, _ = context.WithTimeout(ctx, 5*time.Second)
+
+	return p.StopWithContext(ctx)
+}
+
+func (p *Publisher) StopWithContext(ctx context.Context) error {
+	fmt.Printf("[PUBLISHER]Stopping %s...\n", p.appName)
+
+	c := make(chan error)
+
+	go func() {
+		c <- p.conn.Close()
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return errors.New("error: ctx expired while stopping publisher")
+		case err := <-c:
+			return err
+		}
+	}
 }
 
 func NewPublisher(
