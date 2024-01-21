@@ -247,7 +247,11 @@ func (l *Listener) processCmd(
 		l.handleErrHandler(msg, cmd.Type, err)
 	}
 
-	msg.Ack(false)
+	err = msg.Ack(false)
+	if err != nil {
+		log.Error().Msgf("can not ack/reject msg: %s", err.Error())
+		return
+	}
 }
 
 func (l *Listener) eventsWorker(
@@ -296,7 +300,11 @@ func (l *Listener) processEvent(
 		return
 	}
 
-	msg.Ack(false)
+	err = msg.Ack(false)
+	if err != nil {
+		log.Error().Msgf("can not ack/reject msg: %s", err.Error())
+		return
+	}
 }
 
 func (l *Listener) queriesWorker(
@@ -360,7 +368,11 @@ func (l *Listener) processQuery(
 		return
 	}
 
-	msg.Ack(false)
+	err = msg.Ack(false)
+	if err != nil {
+		log.Error().Msgf("can not ack/reject msg: %s", err.Error())
+		return
+	}
 }
 
 func (l *Listener) publishReply(
@@ -401,10 +413,16 @@ func (l *Listener) handleMsgNoHandlers(msg *amqp.Delivery, typ string) {
 	log.Warn().Msgf("ignoring msg due to no handler registered, msg type [%s]", typ)
 
 	if l.configs.AckIfNoHandlers {
-		msg.Ack(false)
-	} else {
-		l.rejectMsg(msg, true)
+		err := msg.Ack(false)
+		if err != nil {
+			log.Error().Msgf("can not ack/reject msg: %s", err.Error())
+			return
+		}
+
+		return
 	}
+
+	l.rejectMsg(msg, true)
 }
 
 func (l *Listener) handleErrHandler(msg *amqp.Delivery, typ string, err error) {
@@ -429,5 +447,9 @@ func (l *Listener) rejectMsgWithLog(msg *amqp.Delivery, requeue bool, format str
 // user-defined configurations.
 func (l *Listener) rejectMsg(msg *amqp.Delivery, requeue bool) {
 	time.Sleep(l.configs.DelayOnReject.Abs())
-	msg.Reject(requeue)
+	err := msg.Reject(requeue)
+	if err != nil {
+		log.Error().Msgf("can not ack/reject msg: %s", err.Error())
+		return
+	}
 }

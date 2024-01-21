@@ -123,7 +123,12 @@ func (r *replyRouter) listen(conn *amqp.Connection) error {
 			if corrId == "" {
 				corrId, ok := msg.Headers[correlationIDHeader]
 				if !ok || corrId == "" {
-					m.Ack(false)
+					err := m.Ack(false)
+					if err != nil {
+						log.Error().Msgf("can not ack/reject msg: %s", err.Error())
+						continue
+					}
+
 					continue
 				}
 			}
@@ -131,7 +136,12 @@ func (r *replyRouter) listen(conn *amqp.Connection) error {
 			if replyStr, ok := r.repliesMap[corrId]; ok {
 				// Verify if the timeout has already elapsed.
 				if !replyStr.timer.Stop() {
-					m.Ack(false)
+					err := m.Ack(false)
+					if err != nil {
+						log.Error().Msgf("can not ack/reject msg: %s", err.Error())
+						continue
+					}
+
 					continue
 				}
 
@@ -145,7 +155,13 @@ func (r *replyRouter) listen(conn *amqp.Connection) error {
 
 				delete(r.repliesMap, corrId)
 
-				m.Ack(false)
+				err := m.Ack(false)
+				if err != nil {
+					log.Error().Msgf("can not ack/reject msg: %s", err.Error())
+					continue
+				}
+
+				continue
 			}
 		}
 	}()

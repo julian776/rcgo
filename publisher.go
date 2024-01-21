@@ -73,6 +73,8 @@ func NewPublisher(
 func (p *Publisher) Start(
 	ctx context.Context,
 ) {
+	fmt.Printf("[PUBLISHER]Starting %s...\n", p.appName)
+
 	conn, err := amqp.Dial(p.configs.Url)
 	failOnError(err, "failed to connect to RabbitMQ")
 

@@ -102,6 +102,13 @@ func buildQueueName(appName, suffix string) string {
 func defaultRecover(message *amqp.Delivery) {
 	if err := recover(); err != nil {
 		log.Err(err.(error)).Msg("recover from panic on listener")
-		message.Reject(true)
+
+		err := message.Reject(true)
+		if err != nil {
+			log.Error().Msgf("can not ack/reject msg: %s", err.Error())
+			return
+		}
+
+		return
 	}
 }
