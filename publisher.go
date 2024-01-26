@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +20,7 @@ type Publisher struct {
 	ch          *amqp.Channel
 	configs     *PublisherConfigs
 	replyRouter *replyRouter
+	mu          *sync.Mutex
 }
 
 func (p *Publisher) Stop() error {
@@ -65,6 +67,7 @@ func NewPublisher(
 		appName:     appName,
 		configs:     configs,
 		replyRouter: replyRouter,
+		mu:          &sync.Mutex{},
 	}
 }
 
@@ -72,21 +75,29 @@ func NewPublisher(
 // It should be invoked before publishing any messages.
 func (p *Publisher) Start(
 	ctx context.Context,
-) {
+) error {
 	fmt.Printf("[PUBLISHER]Starting %s...\n", p.appName)
 
 	conn, err := amqp.Dial(p.configs.Url)
-	failOnError(err, "failed to connect to RabbitMQ")
+	if err != nil {
+		return fmt.Errorf("failed to connect to RabbitMQ: %s", err.Error())
+	}
 
 	p.conn = conn
 
 	ch, err := conn.Channel()
-	failOnError(err, "failed to open a channel")
+	if err != nil {
+		return fmt.Errorf("failed to open a channel: %s", err.Error())
+	}
 
 	p.ch = ch
 
 	err = p.replyRouter.listen(conn)
-	failOnError(err, "failed to listen for replies")
+	if err != nil {
+		return fmt.Errorf("failed to listen for replies: %s", err.Error())
+	}
+
+	return nil
 }
 
 // SendCmd publishes a command to a specified app in RabbitMQ
@@ -96,6 +107,11 @@ func (p *Publisher) SendCmd(
 	cmd string,
 	data interface{},
 ) error {
+	err := p.validateConn(ctx)
+	if err != nil {
+		return err
+	}
+
 	body, err := mapToAmqp(
 		uuid.NewString(),
 		p.appName,
@@ -125,6 +141,11 @@ func (p *Publisher) PublishEvent(
 	event string,
 	data interface{},
 ) error {
+	err := p.validateConn(ctx)
+	if err != nil {
+		return err
+	}
+
 	body, err := mapToAmqp(
 		uuid.NewString(),
 		p.appName,
@@ -216,6 +237,11 @@ func (p *Publisher) RequestReplyC(
 	query string,
 	data interface{},
 ) (chan *Reply, error) {
+	err := p.validateConn(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error when request reply %s", err.Error())
+	}
+
 	correlationId := uuid.NewString()
 
 	body, err := mapToAmqp(
@@ -242,4 +268,18 @@ func (p *Publisher) RequestReplyC(
 	}
 
 	return p.replyRouter.addReplyToListen(query, correlationId), nil
+}
+
+func (p *Publisher) validateConn(ctx context.Context) error {
+	if p.ch == nil || p.ch.IsClosed() {
+		// Validate before call the mutex.
+		// If not we are going to block each time the
+		// function is called.
+		p.mu.Lock()
+		defer p.mu.Unlock()
+
+		return p.Start(ctx)
+	}
+
+	return nil
 }
