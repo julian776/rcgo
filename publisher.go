@@ -31,7 +31,7 @@ func (p *Publisher) Stop() error {
 }
 
 func (p *Publisher) StopWithContext(ctx context.Context) error {
-	fmt.Printf("[PUBLISHER]Stopping %s...\n", p.appName)
+	fmt.Printf("[PUBLISHER] Stopping %s...\n", p.appName)
 
 	c := make(chan error)
 
@@ -76,7 +76,7 @@ func NewPublisher(
 func (p *Publisher) Start(
 	ctx context.Context,
 ) error {
-	fmt.Printf("[PUBLISHER]Starting %s...\n", p.appName)
+	fmt.Printf("[PUBLISHER] Starting %s...\n", p.appName)
 
 	conn, err := amqp.Dial(p.configs.Url)
 	if err != nil {

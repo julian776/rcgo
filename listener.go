@@ -36,7 +36,7 @@ func NewListener(
 	}
 
 	if configs.Url == "" {
-		panic("Can not connect to RabbitMQ url is blank")
+		log.Panic().Msg("Can not connect to RabbitMQ url is blank")
 	}
 
 	return &Listener{
@@ -57,7 +57,7 @@ func (l *Listener) Stop() error {
 }
 
 func (l *Listener) StopWithContext(ctx context.Context) error {
-	fmt.Printf("[LISTENER]Stopping %s...\n", l.appName)
+	fmt.Printf("[LISTENER] Stopping %s...\n", l.appName)
 
 	c := make(chan error)
 
@@ -106,7 +106,7 @@ func (l *Listener) AddQueryHandler(
 func (l *Listener) Listen(
 	ctx context.Context,
 ) error {
-	fmt.Printf("[LISTENER]Starting %s...\n", l.appName)
+	fmt.Printf("[LISTENER] Starting %s...\n", l.appName)
 
 	formattedUrl := strings.Replace(l.configs.Url, "\r", "", -1)
 
