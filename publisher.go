@@ -192,9 +192,7 @@ func (p *Publisher) RequestReply(
 	reply := <-resCh
 
 	if reply.Err != nil {
-		if reply.Err == ErrTimeoutReply {
-			return err
-		}
+		return reply.Err
 	}
 
 	err = json.Unmarshal(reply.Data, res)
