@@ -196,9 +196,24 @@ func (l *Listener) Listen(
 		go l.queriesWorker(ctx, queriesDeliveries)
 	}
 
+	go l.listenClose(ctx)
+
 	<-ctx.Done()
 
 	return nil
+}
+
+func (l *Listener) listenClose(
+	ctx context.Context,
+) {
+	c := l.conn.NotifyClose(make(chan *amqp.Error))
+
+	err := <-c
+	// We need to check for errors because a graceful shutdown returns nil.
+	if err != nil {
+		fmt.Printf("[LISTENER] Connection closed by error: %s. reconnecting...\n", err.Error())
+		l.Listen(ctx)
+	}
 }
 
 func (l *Listener) cmdsWorker(
