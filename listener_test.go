@@ -56,7 +56,7 @@ func (s *ListenerTestSuite) TestListener_cmdsWorker() {
 		},
 	)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*300)
+	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*100)
 
 	cmdsCh := make(chan amqp091.Delivery)
 
@@ -116,7 +116,7 @@ func (s *ListenerTestSuite) TestListener_eventsWorker() {
 		},
 	)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*300)
+	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*100)
 
 	cmdsCh := make(chan amqp091.Delivery)
 
@@ -180,7 +180,7 @@ func (s *ListenerTestSuite) TestListener_queriesWorker() {
 		},
 	)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*300)
+	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*100)
 
 	queriesCh := make(chan amqp091.Delivery)
 
@@ -221,11 +221,11 @@ func (s *ListenerTestSuite) TestListener_queriesWorker() {
 }
 
 func (s *ListenerTestSuite) TestListener_rejectMsg() {
-	toElapse := time.Millisecond * 300
+	toElapse := time.Millisecond * 100
 	s.l.configs.DelayOnReject = toElapse
 	n := time.Now()
 
 	s.l.rejectMsg(&amqp091.Delivery{}, false)
 
-	s.WithinDuration(n.Add(toElapse), time.Now(), time.Millisecond*50)
+	s.WithinDuration(n.Add(toElapse), time.Now(), time.Millisecond*10)
 }
