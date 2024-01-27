@@ -21,11 +21,14 @@ type Listener struct {
 	configs *ListenerConfigs
 
 	// Keys are the msg types
-	cmdHandlers   map[string]CmdHandlerFunc
+	cmdHandlers map[string]CmdHandlerFunc
+	// Keys are the msg types
 	eventHandlers map[string]EventHandlerFunc
+	// Keys are the msg types
 	queryHandlers map[string]QueryHandlerFunc
 }
 
+// Panics if an invalid config is provided.
 func NewListener(
 	configs *ListenerConfigs,
 	appName string,
@@ -37,6 +40,10 @@ func NewListener(
 
 	if configs.Url == "" {
 		log.Panic().Msg("Can not connect to RabbitMQ url is blank")
+	}
+
+	if configs.CmdsWorkers == 0 || configs.EventsWorkers == 0 || configs.QueriesWorkers == 0 {
+		log.Panic().Msg("The number of workers is invalid. You need at least one for each type of message.\nIf the intention is to avoid adding a worker when there are no handlers, the listener will handle it, so we coerce here to prevent unexpected bugs with zero workers.")
 	}
 
 	return &Listener{
@@ -221,11 +228,14 @@ func (l *Listener) cmdsWorker(
 	cMessages <-chan amqp.Delivery,
 ) {
 	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeCmd.String(), len(l.cmdHandlers))
-	for msg := range cMessages {
-		// Pass a copy of msg
-		go func(msg amqp.Delivery) {
-			l.processCmd(ctx, &msg)
-		}(msg)
+	for i := 0; i <= l.configs.CmdsWorkers; i++ {
+		go func() {
+			for msg := range cMessages {
+				// Pass a copy of msg
+				m := msg
+				l.processCmd(ctx, &m)
+			}
+		}()
 	}
 }
 
@@ -274,11 +284,14 @@ func (l *Listener) eventsWorker(
 	cMessages <-chan amqp.Delivery,
 ) {
 	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeEvent.String(), len(l.eventHandlers))
-	for msg := range cMessages {
-		// Pass a copy of msg
-		go func(msg amqp.Delivery) {
-			l.processEvent(ctx, &msg)
-		}(msg)
+	for i := 0; i <= l.configs.EventsWorkers; i++ {
+		go func() {
+			for msg := range cMessages {
+				// Pass a copy of msg
+				m := msg
+				l.processEvent(ctx, &m)
+			}
+		}()
 	}
 }
 
@@ -327,11 +340,14 @@ func (l *Listener) queriesWorker(
 	cMessages <-chan amqp.Delivery,
 ) {
 	log.Info().Msgf("[LISTENER-WORKER] Waiting for %s [%d] types of handlers", MsgTypeQuery.String(), len(l.queryHandlers))
-	for msg := range cMessages {
-		// Pass a copy of msg
-		go func(msg amqp.Delivery) {
-			l.processQuery(ctx, &msg)
-		}(msg)
+	for i := 0; i <= l.configs.QueriesWorkers; i++ {
+		go func() {
+			for msg := range cMessages {
+				// Pass a copy of msg
+				m := msg
+				l.processQuery(ctx, &m)
+			}
+		}()
 	}
 }
 

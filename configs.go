@@ -5,6 +5,15 @@ import "time"
 type ListenerConfigs struct {
 	Url string
 
+	// Number of cmds workers to spawn
+	CmdsWorkers int
+
+	// Number of events workers to spawn
+	EventsWorkers int
+
+	// Number of queries workers to spawn
+	QueriesWorkers int
+
 	// Acknowledge the server as if
 	// the message was successfully
 	// processed.
@@ -29,6 +38,9 @@ func NewListenerDefaultConfigs(url string) *ListenerConfigs {
 		DelayOnReject:   5 * time.Second,
 		Timezone:        time.UTC,
 		LogLevel:        "info",
+		CmdsWorkers:     5,
+		EventsWorkers:   5,
+		QueriesWorkers:  5,
 	}
 }
 
