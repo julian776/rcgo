@@ -5,6 +5,12 @@ import "time"
 type ListenerConfigs struct {
 	Url string
 
+	// The server will deliver that many
+	// messages to consumers before
+	// acknowledgments are received.
+	// 0 means no limit.
+	PrefetchCount int
+
 	// Number of cmds workers to spawn
 	CmdsWorkers int
 
@@ -41,17 +47,20 @@ func NewListenerDefaultConfigs(url string) *ListenerConfigs {
 		CmdsWorkers:     5,
 		EventsWorkers:   5,
 		QueriesWorkers:  5,
+		PrefetchCount:   15,
 	}
 }
 
 type PublisherConfigs struct {
-	Url          string
-	ReplyTimeout time.Duration
+	Url           string
+	ReplyTimeout  time.Duration
+	PrefetchCount int
 }
 
 func NewPublisherDefaultConfigs(url string) *PublisherConfigs {
 	return &PublisherConfigs{
-		Url:          url,
-		ReplyTimeout: 15 * time.Second,
+		Url:           url,
+		ReplyTimeout:  15 * time.Second,
+		PrefetchCount: 15,
 	}
 }

@@ -60,6 +60,7 @@ func NewPublisher(
 	replyRouter := newReplyRouter(
 		appName,
 		configs.ReplyTimeout.Abs(),
+		configs.PrefetchCount,
 	)
 
 	return &Publisher{

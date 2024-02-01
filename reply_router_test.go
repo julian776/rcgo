@@ -17,7 +17,7 @@ type ReplyRouterTestSuite struct {
 }
 
 func (s *ReplyRouterTestSuite) SetupSuite() {
-	s.replyRouter = newReplyRouter("test", time.Second*15)
+	s.replyRouter = newReplyRouter("test", time.Second*15, 15)
 }
 
 func (s *ReplyRouterTestSuite) Test_addReplyToListen() {

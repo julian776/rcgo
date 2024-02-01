@@ -132,7 +132,7 @@ func (l *Listener) Listen(
 		return fmt.Errorf("error declaring exchanges: %s", err.Error())
 	}
 
-	err = l.ch.Qos(15, 0, false)
+	err = l.ch.Qos(l.configs.PrefetchCount, 0, false)
 	if err != nil {
 		return err
 	}

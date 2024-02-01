@@ -25,24 +25,27 @@ type replyStr struct {
 type repliesMap map[interface{}]replyStr
 
 type replyRouter struct {
-	id         string
-	ch         *amqp.Channel
-	repliesMap repliesMap
-	timeout    time.Duration
+	id            string
+	ch            *amqp.Channel
+	repliesMap    repliesMap
+	timeout       time.Duration
+	prefetchCount int
 }
 
 func newReplyRouter(
 	appName string,
 	timeout time.Duration,
+	prefetchCount int,
 ) *replyRouter {
 	if timeout < time.Millisecond*50 {
 		log.Panic().Msg("Your timeout is too short, please consider give enough timeout to your replies.")
 	}
 
 	return &replyRouter{
-		id:         fmt.Sprintf("%s.%s", appName, uuid.NewString()),
-		repliesMap: make(repliesMap),
-		timeout:    timeout,
+		id:            fmt.Sprintf("%s.%s", appName, uuid.NewString()),
+		repliesMap:    make(repliesMap),
+		timeout:       timeout,
+		prefetchCount: prefetchCount,
 	}
 }
 
@@ -90,11 +93,7 @@ func (r *replyRouter) listen(conn *amqp.Connection) error {
 		return err
 	}
 
-	err = r.ch.Qos(
-		15,    // prefetch count
-		0,     // prefetch size
-		false, // global
-	)
+	err = r.ch.Qos(r.prefetchCount, 0, false)
 
 	if err != nil {
 		return err
