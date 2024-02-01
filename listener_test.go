@@ -11,26 +11,39 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const (
-	appName = "testingListenerApp"
-)
-
 // This test suite contains all tests that do not require a running server.
 type ListenerTestSuite struct {
+	appName string
 	suite.Suite
 	l *Listener
 }
 
 func (s *ListenerTestSuite) SetupSuite() {
 	url := "amqp://user:password@localhost"
+	s.appName = "testingListenerApp"
 
 	configs := NewListenerDefaultConfigs(url)
 	configs.LogLevel = "disabled"
-	s.l = NewListener(configs, appName)
+	s.l = NewListener(configs, s.appName)
 }
 
 func TestListenerTestSuite(t *testing.T) {
 	suite.Run(t, new(ListenerTestSuite))
+}
+
+func (s *ListenerTestSuite) TestListener_New() {
+	c := NewListenerDefaultConfigs("")
+
+	s.Panics(func() {
+		NewListener(c, s.appName)
+	})
+
+	c = NewListenerDefaultConfigs("amqp://user:password@localhost")
+	c.CmdsWorkers = 0
+
+	s.Panics(func() {
+		NewListener(c, s.appName)
+	})
 }
 
 func (s *ListenerTestSuite) TestListener_cmdsWorker() {
