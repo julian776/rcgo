@@ -26,6 +26,7 @@ type E2ETestSuite struct {
 func (s *E2ETestSuite) SetupSuite() {
 	s.url = "amqp://user:password@localhost"
 	s.lApp = "testingListenerApp"
+	s.pApp = "testingPublisherApp"
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
 	s.ctx = ctx
 
