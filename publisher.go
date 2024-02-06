@@ -228,11 +228,15 @@ func (p *Publisher) RequestReply(
 //
 //	if reply.Err != nil {
 //		if reply.Err == ErrTimeoutReply {
+//			// Solely for demonstrating the handling of a timeout error.
 //			return err
 //		}
+//		return err
 //	 }
 //
-//	err = json.Unmarshal(reply.data, res)
+//	res := make(map[string]interface{})
+//
+//	err = json.Unmarshal(reply.data, &res)
 //	if err != nil {
 //		return err
 //	}
