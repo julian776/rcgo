@@ -8,6 +8,10 @@ Even though the main purpose is to provide such abstractions in a mostly generic
 
 `go get github.com/julian776/rcgo`
 
+# API GO DOCS
+
+`https://pkg.go.dev/github.com/julian776/rcgo`
+
 # Examples
 
 - [Publisher](./examples/e2e/publisher.go)
