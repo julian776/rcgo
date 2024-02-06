@@ -56,6 +56,7 @@ func NewListener(
 	}
 }
 
+// Stop closes the connection with the RabbitMQ server.
 func (l *Listener) Stop() error {
 	ctx := context.Background()
 	ctx, _ = context.WithTimeout(ctx, 5*time.Second)
@@ -63,6 +64,8 @@ func (l *Listener) Stop() error {
 	return l.StopWithContext(ctx)
 }
 
+// StopWithContext closes the connection with the RabbitMQ
+// server using the specified context.
 func (l *Listener) StopWithContext(ctx context.Context) error {
 	fmt.Printf("[LISTENER] Stopping %s...\n", l.appName)
 
@@ -82,6 +85,8 @@ func (l *Listener) StopWithContext(ctx context.Context) error {
 	}
 }
 
+// Add a command handler. If the command type of the message
+// is already registered, it will override.
 func (l *Listener) AddCommandHandler(
 	typeMessage string,
 	handler CmdHandlerFunc,
@@ -89,6 +94,8 @@ func (l *Listener) AddCommandHandler(
 	l.cmdHandlers[typeMessage] = handler
 }
 
+// Add a event handler. If the event type of the message
+// is already registered, it will override.
 func (l *Listener) AddEventHandler(
 	typeMessage string,
 	handler EventHandlerFunc,
@@ -96,6 +103,8 @@ func (l *Listener) AddEventHandler(
 	l.eventHandlers[typeMessage] = handler
 }
 
+// Add a query handler. If the query type of the message
+// is already registered, it will override.
 func (l *Listener) AddQueryHandler(
 	typeMessage string,
 	handler QueryHandlerFunc,
@@ -103,12 +112,10 @@ func (l *Listener) AddQueryHandler(
 	l.queryHandlers[typeMessage] = handler
 }
 
-// Listens to the apps added and processes
-// the messages received from them.
-// Processes each msg using the appropiate
-// handlers registered for its type.
-// If an unexpected msg is received, it will
-// acknowledge it to the server and then ignore it.
+// Listen establishes a connection with the RabbitMQ
+// server and initiates message consumption for each
+// specific type. A consumer is opened only if there
+// is a registered handler for that type.
 // The method blocks until the context is done.
 func (l *Listener) Listen(
 	ctx context.Context,

@@ -21,6 +21,7 @@ type Publisher struct {
 	replyRouter *replyRouter
 }
 
+// Stop closes the connection with the RabbitMQ server.
 func (p *Publisher) Stop() error {
 	ctx := context.Background()
 	ctx, _ = context.WithTimeout(ctx, 5*time.Second)
@@ -28,6 +29,8 @@ func (p *Publisher) Stop() error {
 	return p.StopWithContext(ctx)
 }
 
+// StopWithContext closes the connection with the RabbitMQ
+// server using the specified context.
 func (p *Publisher) StopWithContext(ctx context.Context) error {
 	fmt.Printf("[PUBLISHER] Stopping %s...\n", p.appName)
 
@@ -47,6 +50,7 @@ func (p *Publisher) StopWithContext(ctx context.Context) error {
 	}
 }
 
+// Panics if an invalid config is provided.
 func NewPublisher(
 	configs *PublisherConfigs,
 	appName string,
@@ -215,6 +219,11 @@ func (p *Publisher) RequestReply(
 //
 // Example:
 //
+//	resCh, err := p.RequestReplyC(ctx, "anyListener", "anyListener.employees", qdata)
+//	if err != nil {
+//		return err
+//	}
+//
 //	reply := <-resCh
 //
 //	if reply.Err != nil {
@@ -266,6 +275,8 @@ func (p *Publisher) RequestReplyC(
 	return p.replyRouter.addReplyToListen(query, correlationId), nil
 }
 
+// validateConn validates the connection, and if an error,
+// restart the publisher.
 func (p *Publisher) validateConn(ctx context.Context) error {
 	if p.ch == nil || p.ch.IsClosed() {
 		return p.Start(ctx)
