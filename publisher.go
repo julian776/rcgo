@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,7 +19,6 @@ type Publisher struct {
 	ch          *amqp.Channel
 	configs     *PublisherConfigs
 	replyRouter *replyRouter
-	mu          *sync.Mutex
 }
 
 func (p *Publisher) Stop() error {
@@ -68,7 +66,6 @@ func NewPublisher(
 		appName:     appName,
 		configs:     configs,
 		replyRouter: replyRouter,
-		mu:          &sync.Mutex{},
 	}
 }
 
@@ -271,12 +268,6 @@ func (p *Publisher) RequestReplyC(
 
 func (p *Publisher) validateConn(ctx context.Context) error {
 	if p.ch == nil || p.ch.IsClosed() {
-		// Validate before call the mutex.
-		// If not we are going to block each time the
-		// function is called.
-		p.mu.Lock()
-		defer p.mu.Unlock()
-
 		return p.Start(ctx)
 	}
 
