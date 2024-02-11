@@ -13,8 +13,9 @@ func main() {
 	lname := "testListener"
 
 	configs := &rcgo.PublisherConfigs{
-		Url:          "amqp://user:password@localhost",
-		ReplyTimeout: time.Second * 15,
+		Url:           "amqp://user:password@localhost",
+		ReplyTimeout:  time.Second * 15,
+		PrefetchCount: 10,
 	}
 
 	p := rcgo.NewPublisher(

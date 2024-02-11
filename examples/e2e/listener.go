@@ -19,6 +19,10 @@ func main() {
 		AckIfNoHandlers: true,
 		Timezone:        time.UTC,
 		LogLevel:        "info",
+		CmdsWorkers:     1,
+		EventsWorkers:   1,
+		QueriesWorkers:  1,
+		PrefetchCount:   10,
 	}
 
 	l := rcgo.NewListener(
