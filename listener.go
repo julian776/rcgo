@@ -124,17 +124,45 @@ func (l *Listener) Listen(
 
 	formattedUrl := strings.Replace(l.configs.Url, "\r", "", -1)
 
-	conn, err := amqp.Dial(formattedUrl)
+	for {
+		l.setUpConn(formattedUrl)
+
+		ctx, cancel := context.WithCancel(ctx)
+		go l.consume(ctx)
+
+		c := l.conn.NotifyClose(make(chan *amqp.Error))
+
+		err := <-c
+		// We need to check for errors because a graceful shutdown returns nil.
+		if err == nil {
+			cancel()
+			break
+		}
+
+		// Cancel the last consumption to initiate another cycle with a new one.
+		cancel()
+		fmt.Printf("[LISTENER] Connection closed by error: %s. reconnecting...\n", err.Error())
+	}
+
+	return nil
+}
+
+func (l *Listener) setUpConn(url string) {
+	conn, err := amqp.Dial(url)
 	failOnError(err, "Failed to connect to RabbitMQ")
 
 	l.conn = conn
 
-	ch, err := conn.Channel()
+	ch, err := l.conn.Channel()
 	failOnError(err, "Failed to open a channel")
 
 	l.ch = ch
+}
 
-	err = declareExchanges(l.ch)
+func (l *Listener) consume(
+	ctx context.Context,
+) error {
+	err := declareExchanges(l.ch)
 	if err != nil {
 		return fmt.Errorf("error declaring exchanges: %s", err.Error())
 	}
@@ -210,24 +238,9 @@ func (l *Listener) Listen(
 		go l.queriesWorker(ctx, queriesDeliveries)
 	}
 
-	go l.listenClose(ctx)
-
 	<-ctx.Done()
 
 	return nil
-}
-
-func (l *Listener) listenClose(
-	ctx context.Context,
-) {
-	c := l.conn.NotifyClose(make(chan *amqp.Error))
-
-	err := <-c
-	// We need to check for errors because a graceful shutdown returns nil.
-	if err != nil {
-		fmt.Printf("[LISTENER] Connection closed by error: %s. reconnecting...\n", err.Error())
-		l.Listen(ctx)
-	}
 }
 
 func (l *Listener) cmdsWorker(
