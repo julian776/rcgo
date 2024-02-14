@@ -265,7 +265,7 @@ func (l *Listener) processCmd(
 	ctx context.Context,
 	msg *amqp.Delivery,
 ) {
-	defer defaultRecover(msg)
+	defer defaultRecover(msg, l.configs.DelayOnReject)
 
 	cmdBody := &cmdBody{}
 	err := json.Unmarshal(msg.Body, cmdBody)
@@ -321,7 +321,7 @@ func (l *Listener) processEvent(
 	ctx context.Context,
 	msg *amqp.Delivery,
 ) {
-	defer defaultRecover(msg)
+	defer defaultRecover(msg, l.configs.DelayOnReject)
 
 	eventBody := &eventBody{}
 	err := json.Unmarshal(msg.Body, eventBody)
@@ -377,7 +377,7 @@ func (l *Listener) processQuery(
 	ctx context.Context,
 	msg *amqp.Delivery,
 ) {
-	defer defaultRecover(msg)
+	defer defaultRecover(msg, l.configs.DelayOnReject)
 
 	queryBody := &queryBody{}
 	err := json.Unmarshal(msg.Body, queryBody)

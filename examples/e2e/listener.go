@@ -72,7 +72,7 @@ func main() {
 
 	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 
-	go l.Listen(ctx)
+	l.Listen(ctx)
 
 	<-ctx.Done()
 

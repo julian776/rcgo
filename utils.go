@@ -2,6 +2,7 @@ package rcgo
 
 import (
 	"fmt"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/rs/zerolog/log"
@@ -99,10 +100,11 @@ func buildQueueName(appName, suffix string) string {
 	return fmt.Sprintf("%s.%s", appName, suffix)
 }
 
-func defaultRecover(message *amqp.Delivery) {
+func defaultRecover(message *amqp.Delivery, rejectDelay time.Duration) {
 	if err := recover(); err != nil {
 		log.Err(err.(error)).Msg("recover from panic on listener")
 
+		time.Sleep(rejectDelay)
 		err := message.Reject(true)
 		if err != nil {
 			log.Error().Msgf("can not ack/reject msg: %s", err.Error())
