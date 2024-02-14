@@ -124,25 +124,27 @@ func (l *Listener) Listen(
 
 	formattedUrl := strings.Replace(l.configs.Url, "\r", "", -1)
 
-	for {
-		l.setUpConn(formattedUrl)
+	go func() {
+		for {
+			l.setUpConn(formattedUrl)
 
-		ctx, cancel := context.WithCancel(ctx)
-		go l.consume(ctx)
+			ctx, cancel := context.WithCancel(ctx)
+			go l.consume(ctx)
 
-		c := l.conn.NotifyClose(make(chan *amqp.Error))
+			c := l.conn.NotifyClose(make(chan *amqp.Error))
 
-		err := <-c
-		// We need to check for errors because a graceful shutdown returns nil.
-		if err == nil {
+			err := <-c
+			// We need to check for errors because a graceful shutdown returns nil.
+			if err == nil {
+				cancel()
+				break
+			}
+
+			// Cancel the last consumption to initiate another cycle with a new one.
 			cancel()
-			break
+			fmt.Printf("[LISTENER] Connection closed by error: %s. reconnecting...\n", err.Error())
 		}
-
-		// Cancel the last consumption to initiate another cycle with a new one.
-		cancel()
-		fmt.Printf("[LISTENER] Connection closed by error: %s. reconnecting...\n", err.Error())
-	}
+	}()
 
 	return nil
 }
