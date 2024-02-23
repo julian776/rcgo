@@ -40,3 +40,15 @@ In Reactive Commons, a query is a request for a specific resource to a specific 
 Read about RPC [here](https://www.rabbitmq.com/tutorials/tutorial-six-go.html)
 
 To create a query in Reactive Commons, use the app name followed by a custom identifier. For instance, in a payments application, a query handler could be named `payments.contacts.getUser`.
+
+# Test
+
+`go test -v --cover $(go list ./... | grep -v /examples/)`
+
+# How to Contribute
+
+Make a pull request...
+
+# License
+
+Distributed under MIT License, please see license file within the code for more details.
