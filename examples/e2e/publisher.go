@@ -52,10 +52,9 @@ func main() {
 	var res interface{}
 	err := p.RequestReply(ctx, lname, "testListener.employees", qdata, &res)
 	if err != nil {
-		fmt.Errorf("err in RequestReply %s", err.Error())
+		fmt.Printf("err in RequestReply %s", err.Error())
+		return
 	}
 
 	fmt.Printf("reply %+v", res)
-
-	time.Sleep(time.Second * 5)
 }
