@@ -33,6 +33,7 @@ func (s *E2ETestSuite) SetupSuite() {
 	lconfigs := NewListenerDefaultConfigs(s.url)
 	lconfigs.LogLevel = "disabled"
 	s.l = NewListener(lconfigs, s.lApp)
+	go s.l.Listen(ctx)
 
 	pconfigs := NewPublisherDefaultConfigs(s.url)
 	s.p = NewPublisher(pconfigs, s.pApp)
