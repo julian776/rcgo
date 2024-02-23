@@ -15,6 +15,7 @@ import (
 type Publisher struct {
 	id          string
 	appName     string
+	isStopped   bool
 	conn        *amqp.Connection
 	ch          *amqp.Channel
 	configs     *PublisherConfigs
@@ -23,6 +24,7 @@ type Publisher struct {
 
 // Stop closes the connection with the RabbitMQ server.
 func (p *Publisher) Stop() error {
+	p.isStopped = true
 	ctx := context.Background()
 	ctx, _ = context.WithTimeout(ctx, 5*time.Second)
 
@@ -32,7 +34,12 @@ func (p *Publisher) Stop() error {
 // StopWithContext closes the connection with the RabbitMQ
 // server using the specified context.
 func (p *Publisher) StopWithContext(ctx context.Context) error {
+	p.isStopped = true
 	fmt.Printf("[PUBLISHER] Stopping %s...\n", p.appName)
+
+	if p.conn == nil {
+		return nil
+	}
 
 	cErr := make(chan error)
 	cDone := make(chan struct{})
@@ -99,6 +106,7 @@ func NewPublisher(
 func (p *Publisher) Start(
 	ctx context.Context,
 ) error {
+	p.isStopped = false
 	fmt.Printf("[PUBLISHER] Starting %s...\n", p.appName)
 
 	conn, err := amqp.Dial(p.configs.Url)
@@ -130,6 +138,10 @@ func (p *Publisher) SendCmd(
 	cmd string,
 	data interface{},
 ) error {
+	if p.isStopped {
+		return ErrPublisherStopped
+	}
+
 	err := p.validateConn(ctx)
 	if err != nil {
 		return err
@@ -164,6 +176,10 @@ func (p *Publisher) PublishEvent(
 	event string,
 	data interface{},
 ) error {
+	if p.isStopped {
+		return ErrPublisherStopped
+	}
+
 	err := p.validateConn(ctx)
 	if err != nil {
 		return err
@@ -203,6 +219,10 @@ func (p *Publisher) RequestReply(
 	data interface{},
 	res interface{},
 ) error {
+	if p.isStopped {
+		return ErrPublisherStopped
+	}
+
 	if reflect.ValueOf(res).Kind() != reflect.Pointer {
 		return fmt.Errorf("res value must be a pointer")
 	}
@@ -267,6 +287,10 @@ func (p *Publisher) RequestReplyC(
 	query string,
 	data interface{},
 ) (chan *Reply, error) {
+	if p.isStopped {
+		return nil, ErrPublisherStopped
+	}
+
 	err := p.validateConn(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error when request reply %s", err.Error())
@@ -303,7 +327,7 @@ func (p *Publisher) RequestReplyC(
 // validateConn validates the connection, and if an error,
 // restart the publisher.
 func (p *Publisher) validateConn(ctx context.Context) error {
-	if p.ch == nil || p.ch.IsClosed() {
+	if !p.isStopped && (p.ch == nil || p.ch.IsClosed()) {
 		return p.Start(ctx)
 	}
 

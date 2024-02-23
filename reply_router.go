@@ -55,6 +55,10 @@ func newReplyRouter(
 // subsequently closing the channels for each of
 // them using the provided context.
 func (r *replyRouter) stop(ctx context.Context) error {
+	// Wait for a moment to ensure that all replies
+	// that can be added while the publisher is stopped are received.
+	time.Sleep(time.Millisecond * 100)
+
 	for _, replyStr := range r.repliesMap {
 		select {
 		case <-ctx.Done():

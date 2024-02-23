@@ -1,6 +1,7 @@
 package rcgo
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -31,4 +32,27 @@ func (s *PublisherTestSuite) TestPublisher_New() {
 	s.Panics(func() {
 		NewPublisher(c, s.appName)
 	})
+}
+
+func (s *PublisherTestSuite) TestPublisher_BlockSendMsgsIfStopped() {
+	c := NewPublisherDefaultConfigs("url")
+
+	p := NewPublisher(c, s.appName)
+	p.Stop()
+
+	ctx := context.Background()
+
+	err := p.SendCmd(ctx, "tL", "cmd", "")
+	s.ErrorIs(err, ErrPublisherStopped)
+
+	err = p.PublishEvent(ctx, "event", "")
+	s.ErrorIs(err, ErrPublisherStopped)
+
+	var res interface{}
+	err = p.RequestReply(ctx, "tL", "cmd", "", &res)
+	s.ErrorIs(err, ErrPublisherStopped)
+
+	ch, err := p.RequestReplyC(ctx, "tL", "cmd", "")
+	s.Nil(ch)
+	s.ErrorIs(err, ErrPublisherStopped)
 }
