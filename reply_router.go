@@ -1,6 +1,7 @@
 package rcgo
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -49,7 +50,34 @@ func newReplyRouter(
 	}
 }
 
-func (r *replyRouter) listen(conn *amqp.Connection) error {
+// stop will cancel all replies, sending a reply
+// with the [rcgo.ErrCanceledReply] error, and
+// subsequently closing the channels for each of
+// them using the provided context.
+func (r *replyRouter) stop(ctx context.Context) error {
+	for _, replyStr := range r.repliesMap {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		if !replyStr.timer.Stop() {
+			continue
+		}
+
+		replyStr.ch <- &Reply{
+			Query: replyStr.query,
+			Err:   ErrCanceledReply,
+		}
+
+		close(replyStr.ch)
+	}
+
+	return nil
+}
+
+func (r *replyRouter) listen(ctx context.Context, conn *amqp.Connection) error {
 	ch, err := conn.Channel()
 	failOnError(err, "Failed to open a reply channel")
 

@@ -34,18 +34,39 @@ func (p *Publisher) Stop() error {
 func (p *Publisher) StopWithContext(ctx context.Context) error {
 	fmt.Printf("[PUBLISHER] Stopping %s...\n", p.appName)
 
-	c := make(chan error)
+	cErr := make(chan error)
+	cDone := make(chan struct{})
+	doneCount := 2
 
 	go func() {
-		c <- p.conn.Close()
+		err := p.conn.Close()
+		if err != nil {
+			cErr <- err
+		}
+
+		cDone <- struct{}{}
+	}()
+
+	go func() {
+		err := p.replyRouter.stop(ctx)
+		if err != nil {
+			cErr <- err
+		}
+
+		cDone <- struct{}{}
 	}()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return errors.New("error: ctx expired while stopping publisher")
-		case err := <-c:
+		case err := <-cErr:
 			return err
+		case <-cDone:
+			doneCount--
+			if doneCount <= 0 {
+				return nil
+			}
 		}
 	}
 }
@@ -94,7 +115,7 @@ func (p *Publisher) Start(
 
 	p.ch = ch
 
-	err = p.replyRouter.listen(conn)
+	err = p.replyRouter.listen(ctx, conn)
 	if err != nil {
 		return fmt.Errorf("failed to listen for replies: %s", err.Error())
 	}
