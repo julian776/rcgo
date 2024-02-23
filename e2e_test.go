@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,6 +30,13 @@ func (s *E2ETestSuite) SetupSuite() {
 	s.pApp = "testingPublisherApp"
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
 	s.ctx = ctx
+
+	_, err := amqp.Dial(s.url)
+	if err != nil {
+		s.FailNow("Failed to connect to RabbitMQ can not run e2e test")
+
+		return
+	}
 
 	lconfigs := NewListenerDefaultConfigs(s.url)
 	lconfigs.LogLevel = "disabled"
