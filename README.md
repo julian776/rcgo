@@ -27,7 +27,7 @@ In Reactive Commons Go, the three fundamental concepts are commands, queries, an
 
 ## Commands
 
-Commands in reactive-commons act as executors specific to an app and must be created with the app name followed by a specific identifier. For instance, in a payments app, a command could be named `payment.contacts.saveOrder`.
+Commands in reactive-commons act as executors specific to an app and must be created with the app name followed by a specific identifier. For instance, in a payments app, a command could be named `payments.contacts.saveOrder`.
 
 ## Events
 
