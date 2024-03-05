@@ -38,27 +38,33 @@ func (s *E2ETestSuite) SetupSuite() {
 		return
 	}
 
-	lconfigs := NewListenerDefaultConfigs(s.url)
-	lconfigs.LogLevel = "disabled"
-	s.l = NewListener(lconfigs, s.lApp)
-	go s.l.Listen(ctx)
-
 	pconfigs := NewPublisherDefaultConfigs(s.url)
 	s.p = NewPublisher(pconfigs, s.pApp)
-	s.p.Start(s.ctx)
 }
 
 func TestE2ETestSuite(t *testing.T) {
 	suite.Run(t, new(E2ETestSuite))
 }
 
+func (s *E2ETestSuite) TearDownSuite() {
+	err := s.p.Stop()
+	if err != nil {
+		s.T().Logf("error: %s", err.Error())
+	}
+}
+
 func (s *E2ETestSuite) TestE2E_Cmds() {
 	cmdTyp := fmt.Sprintf("%s.%s", s.lApp, "cmd")
 	var data interface{} = "data"
+
+	lconfigs := NewListenerDefaultConfigs(s.url)
+	lconfigs.LogLevel = "disabled"
+	l := NewListener(lconfigs, s.lApp)
+
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	s.l.AddCommandHandler(
+	l.AddCommandHandler(
 		cmdTyp,
 		func(ctx context.Context, c *Cmd) error {
 			s.Len(c.Id, 36)
@@ -72,14 +78,19 @@ func (s *E2ETestSuite) TestE2E_Cmds() {
 			return nil
 		})
 
-	go func() {
-		err := s.l.Listen(s.ctx)
-		s.Nil(err)
-	}()
+	err := l.Listen(s.ctx)
+	s.Nil(err)
 
-	s.p.SendCmd(s.ctx, s.lApp, cmdTyp, data)
+	// Provide sufficient time for the listener to start.
+	time.Sleep(time.Microsecond * 100)
+
+	err = s.p.SendCmd(s.ctx, s.lApp, cmdTyp, data)
+	s.Nil(err)
 
 	wg.Wait()
+
+	err = l.Stop()
+	s.Nil(err)
 }
 
 func (s *E2ETestSuite) TestE2E_Events() {
@@ -91,10 +102,14 @@ func (s *E2ETestSuite) TestE2E_Events() {
 	var id1 string
 	var id2 string
 
+	lconfigs := NewListenerDefaultConfigs(s.url)
+	lconfigs.LogLevel = "disabled"
+	l := NewListener(lconfigs, s.lApp)
+
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 
-	s.l.AddEventHandler(
+	l.AddEventHandler(
 		eventTyp,
 		func(ctx context.Context, e *Event) error {
 			s.Len(e.Id, 36)
@@ -108,10 +123,8 @@ func (s *E2ETestSuite) TestE2E_Events() {
 			return nil
 		})
 
-	go func() {
-		err := s.l.Listen(s.ctx)
-		s.Nil(err)
-	}()
+	err := l.Listen(s.ctx)
+	s.Nil(err)
 
 	// In this test, we generate an additional listener
 	// to verify the broadcast functionality of events
@@ -134,26 +147,39 @@ func (s *E2ETestSuite) TestE2E_Events() {
 			return nil
 		})
 
-	go func() {
-		err := otherListener.Listen(s.ctx)
-		s.Nil(err)
-	}()
+	err = otherListener.Listen(s.ctx)
+	s.Nil(err)
 
-	s.p.PublishEvent(s.ctx, eventTyp, data)
+	// Provide sufficient time for the listener to start.
+	time.Sleep(time.Millisecond * 100)
+
+	err = s.p.PublishEvent(s.ctx, eventTyp, data)
+	s.Nil(err)
 
 	wg.Wait()
 
 	s.Exactly(id1, id2)
+
+	err = l.Stop()
+	s.Nil(err)
+
+	err = otherListener.Stop()
+	s.Nil(err)
 }
 
 func (s *E2ETestSuite) TestE2E_Queries() {
 	queryTyp := fmt.Sprintf("%s.%s", s.lApp, "query")
 	var data interface{} = "data"
 	var dataRes interface{} = "dataRes"
+
+	lconfigs := NewListenerDefaultConfigs(s.url)
+	lconfigs.LogLevel = "disabled"
+	l := NewListener(lconfigs, s.lApp)
+
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	s.l.AddQueryHandler(
+	l.AddQueryHandler(
 		queryTyp,
 		func(ctx context.Context, q *Query) (interface{}, error) {
 			s.Equal(queryTyp, q.Target)
@@ -162,28 +188,42 @@ func (s *E2ETestSuite) TestE2E_Queries() {
 			s.Exactly(data, q.Data)
 
 			wg.Done()
+			fmt.Println("adfgfsfdg", dataRes)
+
 			return dataRes, nil
 		})
 
-	go func() {
-		err := s.l.Listen(s.ctx)
-		s.Nil(err)
-	}()
+	err := l.Listen(s.ctx)
+	s.Nil(err)
 
+	// Provide sufficient time for the listener to start.
+	time.Sleep(time.Millisecond * 100)
 	var res interface{}
-	s.p.RequestReply(s.ctx, s.lApp, queryTyp, data, &res)
+
+	err = s.p.RequestReply(s.ctx, s.lApp, queryTyp, data, &res)
+	s.Nil(err)
+
+	if err != nil {
+		// unblock if err
+		wg.Done()
+	}
 
 	wg.Wait()
 
 	s.Exactly(dataRes, res)
+
+	err = l.Stop()
+	s.Nil(err)
 }
 
 func (s *E2ETestSuite) TestE2E_Close() {
-	go func() {
-		err := s.l.Listen(s.ctx)
-		s.Nil(err)
-	}()
+	// create a new listener to this test
+	lconfigs := NewListenerDefaultConfigs(s.url)
+	lconfigs.LogLevel = "disabled"
+	s.l = NewListener(lconfigs, s.lApp)
+	go s.l.Listen(s.ctx)
 
+	// Provide sufficient time for the listener to start.
 	time.Sleep(time.Millisecond * 100)
 
 	err := s.l.Stop()
