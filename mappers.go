@@ -13,6 +13,7 @@ func mapToAmqp(
 	msgName string,
 	typ MsgType,
 	data interface{},
+	opts Options,
 ) (*amqp.Publishing, error) {
 	var body interface{}
 
@@ -42,6 +43,9 @@ func mapToAmqp(
 		p.ReplyTo = sourceAppName
 		p.CorrelationId = id
 	}
+
+	// addOptions
+	p.Expiration = opts.Expiration
 
 	d, err := json.Marshal(&body)
 	if err != nil {

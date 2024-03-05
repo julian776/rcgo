@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -137,6 +138,7 @@ func (p *Publisher) SendCmd(
 	appTarget string,
 	cmd string,
 	data interface{},
+	options ...Options,
 ) error {
 	if p.isStopped {
 		return ErrPublisherStopped
@@ -147,12 +149,15 @@ func (p *Publisher) SendCmd(
 		return err
 	}
 
+	opts := p.firstOrDefaultOptions(options)
+
 	body, err := mapToAmqp(
 		uuid.NewString(),
 		p.appName,
 		cmd,
 		MsgTypeCmd,
 		data,
+		opts,
 	)
 	if err != nil {
 		return fmt.Errorf("command can not be parsed")
@@ -175,6 +180,7 @@ func (p *Publisher) PublishEvent(
 	ctx context.Context,
 	event string,
 	data interface{},
+	options ...Options,
 ) error {
 	if p.isStopped {
 		return ErrPublisherStopped
@@ -185,12 +191,15 @@ func (p *Publisher) PublishEvent(
 		return err
 	}
 
+	opts := p.firstOrDefaultOptions(options)
+
 	body, err := mapToAmqp(
 		uuid.NewString(),
 		p.appName,
 		event,
 		MsgTypeEvent,
 		data,
+		opts,
 	)
 	if err != nil {
 		return fmt.Errorf("event can not be parsed")
@@ -218,6 +227,7 @@ func (p *Publisher) RequestReply(
 	query string,
 	data interface{},
 	res interface{},
+	options ...Options,
 ) error {
 	if p.isStopped {
 		return ErrPublisherStopped
@@ -227,7 +237,7 @@ func (p *Publisher) RequestReply(
 		return fmt.Errorf("res value must be a pointer")
 	}
 
-	resCh, err := p.RequestReplyC(ctx, appTarget, query, data)
+	resCh, err := p.RequestReplyC(ctx, appTarget, query, data, options...)
 	if err != nil {
 		return err
 	}
@@ -255,8 +265,14 @@ func (p *Publisher) RequestReply(
 // to handle closure events.
 // The channel will be closed when a reply is
 // received or when a timeout occurs.
-// Listen for the [rcgo.ErrTimeoutReply]
-// error on the reply to appropriately handle it.
+// Listen for the [rcgo.ErrTimeoutReply] or
+// [rcgo.ErrCanceledReply] errors on the reply
+// to appropriately handle it.
+//
+// By default, the expiration is set to the configs
+// ReplyTimeout plus one second.
+// If an expiration is provided in the Options,
+// the smaller value will be set.
 //
 // Example:
 //
@@ -286,6 +302,7 @@ func (p *Publisher) RequestReplyC(
 	appTarget string,
 	query string,
 	data interface{},
+	options ...Options,
 ) (chan *Reply, error) {
 	if p.isStopped {
 		return nil, ErrPublisherStopped
@@ -298,12 +315,29 @@ func (p *Publisher) RequestReplyC(
 
 	correlationId := uuid.NewString()
 
+	opts := p.firstOrDefaultOptions(options)
+
+	rt := fmt.Sprint(p.configs.ReplyTimeout.Milliseconds())
+	if opts.Expiration == "" {
+		opts.Expiration = rt
+	} else {
+		ex1, err := strconv.ParseInt(opts.Expiration, 10, 64)
+		if err != nil {
+			opts.Expiration = rt
+		}
+
+		if p.configs.ReplyTimeout < time.Duration(ex1) {
+			opts.Expiration = rt
+		}
+	}
+
 	body, err := mapToAmqp(
 		correlationId,
 		p.replyRouter.id,
 		query,
 		MsgTypeQuery,
 		data,
+		opts,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("command can not be parsed")
@@ -332,4 +366,13 @@ func (p *Publisher) validateConn(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (p *Publisher) firstOrDefaultOptions(options []Options) Options {
+	opts := Options{}
+	if len(options) > 0 {
+		opts = options[0]
+	}
+
+	return opts
 }

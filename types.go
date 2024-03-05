@@ -82,3 +82,8 @@ type queryBody struct {
 	Resource string      `json:"resource"`
 	Data     interface{} `json:"queryData"`
 }
+
+type Options struct {
+	// message expiration spec
+	Expiration string
+}
