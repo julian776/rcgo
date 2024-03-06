@@ -15,8 +15,8 @@ func Test_mapToAmqp_Cmd(t *testing.T) {
 		sourceAppName = "test"
 		msgName       = "anyCmd"
 		typ           = MsgTypeCmd
-		data          = ""
 	)
+	data := []byte("")
 
 	got, err := mapToAmqp(id, sourceAppName, msgName, typ, data, Options{})
 	assert.Nil(t, err)
@@ -51,8 +51,8 @@ func Test_mapToAmqp_Event(t *testing.T) {
 		sourceAppName = "test"
 		msgName       = "anyEvent"
 		typ           = MsgTypeEvent
-		data          = ""
 	)
+	data := []byte("")
 
 	got, err := mapToAmqp(id, sourceAppName, msgName, typ, data, Options{})
 	assert.Nil(t, err)
@@ -81,27 +81,14 @@ func Test_mapToAmqp_Event(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func Test_mapToAmqp_ErrData(t *testing.T) {
-	const (
-		id            = "1"
-		sourceAppName = "test"
-		msgName       = "anyEvent"
-		typ           = MsgTypeEvent
-	)
-	data := make(chan int)
-
-	_, err := mapToAmqp(id, sourceAppName, msgName, typ, data, Options{})
-	assert.Error(t, err)
-}
-
 func Test_mapToAmqp_Query(t *testing.T) {
 	const (
 		id            = "1"
 		sourceAppName = "test"
 		msgName       = "anyQuery"
 		typ           = MsgTypeQuery
-		data          = ""
 	)
+	data := []byte("")
 
 	got, err := mapToAmqp(id, sourceAppName, msgName, typ, data, Options{})
 	assert.Nil(t, err)
@@ -141,8 +128,8 @@ func Test_mapToAmqp_OptionsSetted(t *testing.T) {
 		sourceAppName = "test"
 		msgName       = "anyQuery"
 		typ           = MsgTypeQuery
-		data          = ""
 	)
+	data := []byte("")
 
 	opts := Options{
 		Expiration: "10000",

@@ -432,14 +432,9 @@ func (l *Listener) publishReply(
 	ctx context.Context,
 	replyTo,
 	correlationID string,
-	body interface{},
+	body []byte,
 ) error {
-	data, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-
-	err = l.ch.PublishWithContext(
+	err := l.ch.PublishWithContext(
 		ctx,
 		globalReplyExchange, // exchange
 		replyTo,             // routing key
@@ -452,7 +447,7 @@ func (l *Listener) publishReply(
 			},
 			ContentType:   "application/json",
 			CorrelationId: correlationID,
-			Body:          data,
+			Body:          body,
 		})
 
 	if err != nil {

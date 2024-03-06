@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -33,7 +34,12 @@ func main() {
 	l.AddCommandHandler(
 		"testListener.print",
 		func(ctx context.Context, c *rcgo.Cmd) error {
-			m := c.Data.(map[string]interface{})
+			m := make(map[string]interface{})
+			err := json.Unmarshal(c.Data, &m)
+			if err != nil {
+				fmt.Printf("error: %s", err.Error())
+				return err
+			}
 
 			fmt.Printf("msg received %+v\n", m)
 
@@ -44,7 +50,12 @@ func main() {
 	l.AddEventHandler(
 		"orderPlaced",
 		func(ctx context.Context, e *rcgo.Event) error {
-			m := e.Data.(map[string]interface{})
+			m := make(map[string]interface{})
+			err := json.Unmarshal(e.Data, &m)
+			if err != nil {
+				fmt.Printf("error: %s", err.Error())
+				return err
+			}
 
 			fmt.Printf("order received %+v\n", m)
 
@@ -54,8 +65,13 @@ func main() {
 
 	l.AddQueryHandler(
 		"testListener.employees",
-		func(ctx context.Context, q *rcgo.Query) (interface{}, error) {
-			req := q.Data.(map[string]interface{})
+		func(ctx context.Context, q *rcgo.Query) ([]byte, error) {
+			req := make(map[string]interface{})
+			err := json.Unmarshal(q.Data, &req)
+			if err != nil {
+				fmt.Printf("error: %s", err.Error())
+				return []byte{}, err
+			}
 
 			id := req["id"]
 
@@ -63,10 +79,18 @@ func main() {
 
 			// Fetch data
 
-			return map[string]interface{}{
+			res := map[string]interface{}{
 				"id":   id,
 				"name": "julian",
-			}, nil
+			}
+
+			d, err := json.Marshal(res)
+			if err != nil {
+				fmt.Printf("error: %s", err.Error())
+				return []byte{}, err
+			}
+
+			return d, nil
 		},
 	)
 

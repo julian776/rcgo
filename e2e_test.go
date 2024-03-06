@@ -55,7 +55,7 @@ func (s *E2ETestSuite) TearDownSuite() {
 
 func (s *E2ETestSuite) TestE2E_Cmds() {
 	cmdTyp := fmt.Sprintf("%s.%s", s.lApp, "cmd")
-	var data interface{} = "data"
+	data := []byte("data")
 
 	lconfigs := NewListenerDefaultConfigs(s.url)
 	lconfigs.LogLevel = "disabled"
@@ -95,7 +95,7 @@ func (s *E2ETestSuite) TestE2E_Cmds() {
 
 func (s *E2ETestSuite) TestE2E_Events() {
 	eventTyp := "orderPlaced"
-	var data interface{} = "data"
+	data := []byte("data")
 
 	// These ids are used to ensure that both
 	// handlers receive the same id.
@@ -169,8 +169,8 @@ func (s *E2ETestSuite) TestE2E_Events() {
 
 func (s *E2ETestSuite) TestE2E_Queries() {
 	queryTyp := fmt.Sprintf("%s.%s", s.lApp, "query")
-	var data interface{} = "data"
-	var dataRes interface{} = "dataRes"
+	data := []byte("data")
+	dataRes := []byte("dataRes")
 
 	lconfigs := NewListenerDefaultConfigs(s.url)
 	lconfigs.LogLevel = "disabled"
@@ -181,7 +181,7 @@ func (s *E2ETestSuite) TestE2E_Queries() {
 
 	l.AddQueryHandler(
 		queryTyp,
-		func(ctx context.Context, q *Query) (interface{}, error) {
+		func(ctx context.Context, q *Query) ([]byte, error) {
 			s.Equal(queryTyp, q.Target)
 			s.Equal(queryTyp, q.Type)
 			s.WithinDuration(time.Now(), q.GenerationTime, time.Second*1)
@@ -198,9 +198,8 @@ func (s *E2ETestSuite) TestE2E_Queries() {
 
 	// Provide sufficient time for the listener to start.
 	time.Sleep(time.Millisecond * 100)
-	var res interface{}
 
-	err = s.p.RequestReply(s.ctx, s.lApp, queryTyp, data, &res)
+	res, err := s.p.RequestReply(s.ctx, s.lApp, queryTyp, data)
 	s.Nil(err)
 
 	if err != nil {

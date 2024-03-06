@@ -39,20 +39,20 @@ type EventHandlerFunc func(
 type QueryHandlerFunc func(
 	context.Context,
 	*Query,
-) (interface{}, error)
+) ([]byte, error)
 
 type Event struct {
 	Id             string
 	Source         string
 	Type           string
 	GenerationTime time.Time
-	Data           interface{}
+	Data           []byte
 }
 
 type eventBody struct {
-	Name string      `json:"name"`
-	Id   string      `json:"eventId"`
-	Data interface{} `json:"data"`
+	Name string `json:"name"`
+	Id   string `json:"eventId"`
+	Data []byte `json:"data"`
 }
 
 type Cmd struct {
@@ -61,13 +61,13 @@ type Cmd struct {
 	Target         string
 	Type           string
 	GenerationTime time.Time
-	Data           interface{}
+	Data           []byte
 }
 
 type cmdBody struct {
-	Name  string      `json:"name"`
-	CmdId string      `json:"commandId"`
-	Data  interface{} `json:"data"`
+	Name  string `json:"name"`
+	CmdId string `json:"commandId"`
+	Data  []byte `json:"data"`
 }
 
 type Query struct {
@@ -75,12 +75,12 @@ type Query struct {
 	Target         string
 	Type           string
 	GenerationTime time.Time
-	Data           interface{}
+	Data           []byte
 }
 
 type queryBody struct {
-	Resource string      `json:"resource"`
-	Data     interface{} `json:"queryData"`
+	Resource string `json:"resource"`
+	Data     []byte `json:"queryData"`
 }
 
 type Options struct {

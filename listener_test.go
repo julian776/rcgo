@@ -78,7 +78,7 @@ func (s *ListenerTestSuite) TestListener_cmdsWorker() {
 	body, _ := json.Marshal(cmdBody{
 		Name:  cmdTypNoErr,
 		CmdId: "1",
-		Data:  "data",
+		Data:  []byte("data"),
 	})
 	d := amqp091.Delivery{
 		Body: body,
@@ -90,7 +90,7 @@ func (s *ListenerTestSuite) TestListener_cmdsWorker() {
 	body, _ = json.Marshal(cmdBody{
 		Name:  cmdTypErr,
 		CmdId: "1",
-		Data:  "data",
+		Data:  []byte("data"),
 	})
 	d = amqp091.Delivery{
 		Body: body,
@@ -137,7 +137,7 @@ func (s *ListenerTestSuite) TestListener_eventsWorker() {
 
 	body, _ := json.Marshal(eventBody{
 		Name: eventTypNoErr,
-		Data: "data",
+		Data: []byte("data"),
 	})
 	d := amqp091.Delivery{
 		Body: body,
@@ -148,7 +148,7 @@ func (s *ListenerTestSuite) TestListener_eventsWorker() {
 
 	body, _ = json.Marshal(eventBody{
 		Name: eventTypErr,
-		Data: "data",
+		Data: []byte("data"),
 	})
 	d = amqp091.Delivery{
 		Body: body,
@@ -168,8 +168,13 @@ func (s *ListenerTestSuite) TestListener_eventsWorker() {
 func (s *ListenerTestSuite) TestListener_queriesWorker() {
 	queriesTypNoErr := "testingListenerApp.test"
 	callsQueriesTypNoErr := 0
-	data := map[string]interface{}{
+	m := map[string]interface{}{
 		"data": "data",
+	}
+
+	data, err := json.Marshal(m)
+	if err != nil {
+		s.T().Fatalf("error test data: %s", err.Error())
 	}
 
 	queriesTypErr := "testingListenerApp.error"
@@ -177,7 +182,7 @@ func (s *ListenerTestSuite) TestListener_queriesWorker() {
 
 	s.l.AddQueryHandler(
 		queriesTypNoErr,
-		func(ctx context.Context, q *Query) (interface{}, error) {
+		func(ctx context.Context, q *Query) ([]byte, error) {
 			callsQueriesTypNoErr++
 			s.Equal(data, q.Data)
 
@@ -187,7 +192,7 @@ func (s *ListenerTestSuite) TestListener_queriesWorker() {
 
 	s.l.AddQueryHandler(
 		queriesTypErr,
-		func(ctx context.Context, q *Query) (interface{}, error) {
+		func(ctx context.Context, q *Query) ([]byte, error) {
 			callsQueriesTypErr++
 			return nil, errors.New("error")
 		},

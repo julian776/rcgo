@@ -42,17 +42,17 @@ func (s *PublisherTestSuite) TestPublisher_BlockSendMsgsIfStopped() {
 
 	ctx := context.Background()
 
-	err := p.SendCmd(ctx, "tL", "cmd", "")
+	err := p.SendCmd(ctx, "tL", "cmd", []byte(""))
 	s.ErrorIs(err, ErrPublisherStopped)
 
-	err = p.PublishEvent(ctx, "event", "")
+	err = p.PublishEvent(ctx, "event", []byte(""))
 	s.ErrorIs(err, ErrPublisherStopped)
 
-	var res interface{}
-	err = p.RequestReply(ctx, "tL", "cmd", "", &res)
+	res, err := p.RequestReply(ctx, "tL", "cmd", []byte(""))
 	s.ErrorIs(err, ErrPublisherStopped)
+	s.Equal([]byte{}, res)
 
-	ch, err := p.RequestReplyC(ctx, "tL", "cmd", "")
+	ch, err := p.RequestReplyC(ctx, "tL", "cmd", []byte(""))
 	s.Nil(ch)
 	s.ErrorIs(err, ErrPublisherStopped)
 }

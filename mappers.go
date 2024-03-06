@@ -12,7 +12,7 @@ func mapToAmqp(
 	sourceAppName string,
 	msgName string,
 	typ MsgType,
-	data interface{},
+	data []byte,
 	opts Options,
 ) (*amqp.Publishing, error) {
 	var body interface{}

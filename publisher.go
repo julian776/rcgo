@@ -2,10 +2,8 @@ package rcgo
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -137,7 +135,7 @@ func (p *Publisher) SendCmd(
 	ctx context.Context,
 	appTarget string,
 	cmd string,
-	data interface{},
+	data []byte,
 	options ...Options,
 ) error {
 	if p.isStopped {
@@ -179,7 +177,7 @@ func (p *Publisher) SendCmd(
 func (p *Publisher) PublishEvent(
 	ctx context.Context,
 	event string,
-	data interface{},
+	data []byte,
 	options ...Options,
 ) error {
 	if p.isStopped {
@@ -225,35 +223,25 @@ func (p *Publisher) RequestReply(
 	ctx context.Context,
 	appTarget string,
 	query string,
-	data interface{},
-	res interface{},
+	data []byte,
 	options ...Options,
-) error {
+) ([]byte, error) {
 	if p.isStopped {
-		return ErrPublisherStopped
-	}
-
-	if reflect.ValueOf(res).Kind() != reflect.Pointer {
-		return fmt.Errorf("res value must be a pointer")
+		return []byte{}, ErrPublisherStopped
 	}
 
 	resCh, err := p.RequestReplyC(ctx, appTarget, query, data, options...)
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 
 	reply := <-resCh
 
 	if reply.Err != nil {
-		return reply.Err
+		return []byte{}, reply.Err
 	}
 
-	err = json.Unmarshal(reply.Data, res)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return reply.Data, nil
 }
 
 // RequestReplyC sends a request to a specific
@@ -301,7 +289,7 @@ func (p *Publisher) RequestReplyC(
 	ctx context.Context,
 	appTarget string,
 	query string,
-	data interface{},
+	data []byte,
 	options ...Options,
 ) (chan *Reply, error) {
 	if p.isStopped {
