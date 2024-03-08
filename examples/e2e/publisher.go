@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -32,6 +33,7 @@ func main() {
 		"shortname": "rcgo",
 		"name":      "julian776",
 	}
+
 	p.SendCmd(ctx, lname, "testListener.print", data)
 
 	time.Sleep(time.Second * 5)
@@ -49,12 +51,18 @@ func main() {
 		"id": "776",
 	}
 
-	var res interface{}
-	err := p.RequestReply(ctx, lname, "testListener.employees", qdata, &res)
+	res, err := p.RequestReply(ctx, lname, "testListener.employees", qdata)
 	if err != nil {
 		fmt.Printf("err in RequestReply %s", err.Error())
 		return
 	}
 
-	fmt.Printf("reply %+v", res)
+	d := make(map[string]interface{})
+	err = json.Unmarshal(res, &d)
+	if err != nil {
+		fmt.Printf("err in unmarshal data %s", err.Error())
+		return
+	}
+
+	fmt.Printf("reply %+v", d)
 }

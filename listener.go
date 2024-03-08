@@ -434,7 +434,7 @@ func (l *Listener) publishReply(
 	correlationID string,
 	body interface{},
 ) error {
-	data, err := json.Marshal(body)
+	d, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}
@@ -452,7 +452,7 @@ func (l *Listener) publishReply(
 			},
 			ContentType:   "application/json",
 			CorrelationId: correlationID,
-			Body:          data,
+			Body:          d,
 		})
 
 	if err != nil {

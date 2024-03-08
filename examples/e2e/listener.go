@@ -63,10 +63,12 @@ func main() {
 
 			// Fetch data
 
-			return map[string]interface{}{
+			res := map[string]interface{}{
 				"id":   id,
 				"name": "julian",
-			}, nil
+			}
+
+			return res, nil
 		},
 	)
 

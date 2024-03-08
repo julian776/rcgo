@@ -2,10 +2,8 @@ package rcgo
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -219,41 +217,30 @@ func (p *Publisher) PublishEvent(
 
 // RequestReply function serves as a wrapper
 // for [rcgo.RequestReplyC] managing response
-// handling and returning the reply through
-// the `res` parameter.
+// handling and returning the reply.
 func (p *Publisher) RequestReply(
 	ctx context.Context,
 	appTarget string,
 	query string,
 	data interface{},
-	res interface{},
 	options ...Options,
-) error {
+) ([]byte, error) {
 	if p.isStopped {
-		return ErrPublisherStopped
-	}
-
-	if reflect.ValueOf(res).Kind() != reflect.Pointer {
-		return fmt.Errorf("res value must be a pointer")
+		return []byte{}, ErrPublisherStopped
 	}
 
 	resCh, err := p.RequestReplyC(ctx, appTarget, query, data, options...)
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 
 	reply := <-resCh
 
 	if reply.Err != nil {
-		return reply.Err
+		return []byte{}, reply.Err
 	}
 
-	err = json.Unmarshal(reply.Data, res)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return reply.Data, nil
 }
 
 // RequestReplyC sends a request to a specific

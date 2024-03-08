@@ -2,6 +2,7 @@ package rcgo
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"testing"
@@ -176,7 +177,9 @@ func (s *E2ETestSuite) TestE2E_Queries() {
 	data := map[string]interface{}{
 		"data": "data",
 	}
-	var dataRes interface{} = "dataRes"
+	dataRes := map[string]interface{}{
+		"data": "data",
+	}
 
 	lconfigs := NewListenerDefaultConfigs(s.url)
 	lconfigs.LogLevel = "disabled"
@@ -194,7 +197,6 @@ func (s *E2ETestSuite) TestE2E_Queries() {
 			s.Exactly(data, q.Data)
 
 			wg.Done()
-			fmt.Println("adfgfsfdg", dataRes)
 
 			return dataRes, nil
 		})
@@ -204,9 +206,8 @@ func (s *E2ETestSuite) TestE2E_Queries() {
 
 	// Provide sufficient time for the listener to start.
 	time.Sleep(time.Millisecond * 100)
-	var res interface{}
 
-	err = s.p.RequestReply(s.ctx, s.lApp, queryTyp, data, &res)
+	res, err := s.p.RequestReply(s.ctx, s.lApp, queryTyp, data)
 	s.Nil(err)
 
 	if err != nil {
@@ -216,7 +217,8 @@ func (s *E2ETestSuite) TestE2E_Queries() {
 
 	wg.Wait()
 
-	s.Exactly(dataRes, res)
+	dataResJson, _ := json.Marshal(dataRes)
+	s.Exactly(dataResJson, res)
 
 	err = l.Stop()
 	s.Nil(err)
