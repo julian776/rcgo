@@ -33,7 +33,7 @@ func main() {
 	l.AddCommandHandler(
 		"testListener.print",
 		func(ctx context.Context, c *rcgo.Cmd) error {
-			m := c.Data.(map[string]interface{})
+			m := c.Data
 
 			fmt.Printf("msg received %+v\n", m)
 
@@ -44,7 +44,7 @@ func main() {
 	l.AddEventHandler(
 		"orderPlaced",
 		func(ctx context.Context, e *rcgo.Event) error {
-			m := e.Data.(map[string]interface{})
+			m := e.Data
 
 			fmt.Printf("order received %+v\n", m)
 
@@ -55,7 +55,7 @@ func main() {
 	l.AddQueryHandler(
 		"testListener.employees",
 		func(ctx context.Context, q *rcgo.Query) (interface{}, error) {
-			req := q.Data.(map[string]interface{})
+			req := q.Data
 
 			id := req["id"]
 

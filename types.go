@@ -46,7 +46,7 @@ type Event struct {
 	Source         string
 	Type           string
 	GenerationTime time.Time
-	Data           interface{}
+	Data           map[string]interface{}
 }
 
 type eventBody struct {
@@ -61,7 +61,7 @@ type Cmd struct {
 	Target         string
 	Type           string
 	GenerationTime time.Time
-	Data           interface{}
+	Data           map[string]interface{}
 }
 
 type cmdBody struct {
@@ -75,7 +75,7 @@ type Query struct {
 	Target         string
 	Type           string
 	GenerationTime time.Time
-	Data           interface{}
+	Data           map[string]interface{}
 }
 
 type queryBody struct {

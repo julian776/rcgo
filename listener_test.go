@@ -78,7 +78,9 @@ func (s *ListenerTestSuite) TestListener_cmdsWorker() {
 	body, _ := json.Marshal(cmdBody{
 		Name:  cmdTypNoErr,
 		CmdId: "1",
-		Data:  "data",
+		Data: map[string]interface{}{
+			"data": "data",
+		},
 	})
 	d := amqp091.Delivery{
 		Body: body,
@@ -90,7 +92,9 @@ func (s *ListenerTestSuite) TestListener_cmdsWorker() {
 	body, _ = json.Marshal(cmdBody{
 		Name:  cmdTypErr,
 		CmdId: "1",
-		Data:  "data",
+		Data: map[string]interface{}{
+			"data": "data",
+		},
 	})
 	d = amqp091.Delivery{
 		Body: body,
@@ -137,7 +141,9 @@ func (s *ListenerTestSuite) TestListener_eventsWorker() {
 
 	body, _ := json.Marshal(eventBody{
 		Name: eventTypNoErr,
-		Data: "data",
+		Data: map[string]interface{}{
+			"data": "data",
+		},
 	})
 	d := amqp091.Delivery{
 		Body: body,
@@ -148,7 +154,9 @@ func (s *ListenerTestSuite) TestListener_eventsWorker() {
 
 	body, _ = json.Marshal(eventBody{
 		Name: eventTypErr,
-		Data: "data",
+		Data: map[string]interface{}{
+			"data": "data",
+		},
 	})
 	d = amqp091.Delivery{
 		Body: body,

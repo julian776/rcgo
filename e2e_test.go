@@ -55,7 +55,9 @@ func (s *E2ETestSuite) TearDownSuite() {
 
 func (s *E2ETestSuite) TestE2E_Cmds() {
 	cmdTyp := fmt.Sprintf("%s.%s", s.lApp, "cmd")
-	var data interface{} = "data"
+	data := map[string]interface{}{
+		"data": "data",
+	}
 
 	lconfigs := NewListenerDefaultConfigs(s.url)
 	lconfigs.LogLevel = "disabled"
@@ -82,7 +84,7 @@ func (s *E2ETestSuite) TestE2E_Cmds() {
 	s.Nil(err)
 
 	// Provide sufficient time for the listener to start.
-	time.Sleep(time.Microsecond * 100)
+	time.Sleep(time.Microsecond * 150)
 
 	err = s.p.SendCmd(s.ctx, s.lApp, cmdTyp, data)
 	s.Nil(err)
@@ -95,7 +97,9 @@ func (s *E2ETestSuite) TestE2E_Cmds() {
 
 func (s *E2ETestSuite) TestE2E_Events() {
 	eventTyp := "orderPlaced"
-	var data interface{} = "data"
+	data := map[string]interface{}{
+		"data": "data",
+	}
 
 	// These ids are used to ensure that both
 	// handlers receive the same id.
@@ -169,7 +173,9 @@ func (s *E2ETestSuite) TestE2E_Events() {
 
 func (s *E2ETestSuite) TestE2E_Queries() {
 	queryTyp := fmt.Sprintf("%s.%s", s.lApp, "query")
-	var data interface{} = "data"
+	data := map[string]interface{}{
+		"data": "data",
+	}
 	var dataRes interface{} = "dataRes"
 
 	lconfigs := NewListenerDefaultConfigs(s.url)

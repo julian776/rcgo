@@ -280,7 +280,7 @@ func (l *Listener) processCmd(
 		Target:         msg.RoutingKey,
 		GenerationTime: msg.Timestamp,
 		Type:           cmdBody.Name,
-		Data:           cmdBody.Data,
+		Data:           cmdBody.Data.(map[string]interface{}),
 	}
 
 	handler, ok := l.cmdHandlers[cmd.Type]
@@ -335,7 +335,7 @@ func (l *Listener) processEvent(
 		Source:         msg.AppId,
 		GenerationTime: msg.Timestamp,
 		Type:           eventBody.Name,
-		Data:           eventBody.Data,
+		Data:           eventBody.Data.(map[string]interface{}),
 	}
 
 	handler, ok := l.eventHandlers[event.Type]
@@ -391,7 +391,7 @@ func (l *Listener) processQuery(
 		Target:         msg.RoutingKey,
 		GenerationTime: msg.Timestamp,
 		Type:           queryBody.Resource,
-		Data:           queryBody.Data,
+		Data:           queryBody.Data.(map[string]interface{}),
 	}
 
 	corrId := msg.CorrelationId
