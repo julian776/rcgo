@@ -292,6 +292,7 @@ func (l *Listener) processCmd(
 	err = handler(ctx, cmd)
 	if err != nil {
 		l.handleErrHandler(msg, cmd.Type, err)
+		return
 	}
 
 	err = msg.Ack(false)
