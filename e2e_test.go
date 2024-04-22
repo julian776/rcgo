@@ -40,6 +40,7 @@ func (s *E2ETestSuite) SetupSuite() {
 	}
 
 	pconfigs := NewPublisherDefaultConfigs(s.url)
+	pconfigs.ReplyTimeout = time.Second * 45
 	s.p = NewPublisher(pconfigs, s.pApp)
 }
 
@@ -59,13 +60,14 @@ func (s *E2ETestSuite) TestE2E_Cmds() {
 	data := map[string]interface{}{
 		"data": "data",
 	}
+	calls := 0
 
 	lconfigs := NewListenerDefaultConfigs(s.url)
 	lconfigs.LogLevel = "disabled"
 	l := NewListener(lconfigs, s.lApp)
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(2)
 
 	l.AddCommandHandler(
 		cmdTyp,
@@ -77,6 +79,7 @@ func (s *E2ETestSuite) TestE2E_Cmds() {
 			s.WithinDuration(time.Now(), c.GenerationTime, time.Second*1)
 			s.Exactly(data, c.Data)
 
+			calls++
 			wg.Done()
 			return nil
 		})
@@ -90,7 +93,12 @@ func (s *E2ETestSuite) TestE2E_Cmds() {
 	err = s.p.SendCmd(s.ctx, s.lApp, cmdTyp, data)
 	s.Nil(err)
 
+	err = s.p.SendCmd(s.ctx, s.lApp, cmdTyp, data)
+	s.Nil(err)
+
 	wg.Wait()
+
+	s.Equal(2, calls)
 
 	err = l.Stop()
 	s.Nil(err)
@@ -101,6 +109,7 @@ func (s *E2ETestSuite) TestE2E_Events() {
 	data := map[string]interface{}{
 		"data": "data",
 	}
+	calls := 0
 
 	// These ids are used to ensure that both
 	// handlers receive the same id.
@@ -124,6 +133,7 @@ func (s *E2ETestSuite) TestE2E_Events() {
 			s.WithinDuration(time.Now(), e.GenerationTime, time.Second*1)
 			s.Exactly(data, e.Data)
 
+			calls++
 			wg.Done()
 			return nil
 		})
@@ -148,6 +158,7 @@ func (s *E2ETestSuite) TestE2E_Events() {
 			s.WithinDuration(time.Now(), e.GenerationTime, time.Second*1)
 			s.Exactly(data, e.Data)
 
+			calls++
 			wg.Done()
 			return nil
 		})
@@ -164,6 +175,7 @@ func (s *E2ETestSuite) TestE2E_Events() {
 	wg.Wait()
 
 	s.Exactly(id1, id2)
+	s.Equal(2, calls)
 
 	err = l.Stop()
 	s.Nil(err)
@@ -180,13 +192,14 @@ func (s *E2ETestSuite) TestE2E_Queries() {
 	dataRes := map[string]interface{}{
 		"data": "data",
 	}
+	calls := 0
 
 	lconfigs := NewListenerDefaultConfigs(s.url)
 	lconfigs.LogLevel = "disabled"
 	l := NewListener(lconfigs, s.lApp)
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(2)
 
 	l.AddQueryHandler(
 		queryTyp,
@@ -196,6 +209,7 @@ func (s *E2ETestSuite) TestE2E_Queries() {
 			s.WithinDuration(time.Now(), q.GenerationTime, time.Second*1)
 			s.Exactly(data, q.Data)
 
+			calls++
 			wg.Done()
 
 			return dataRes, nil
@@ -207,9 +221,15 @@ func (s *E2ETestSuite) TestE2E_Queries() {
 	// Provide sufficient time for the listener to start.
 	time.Sleep(time.Millisecond * 100)
 
-	res, err := s.p.RequestReply(s.ctx, s.lApp, queryTyp, data)
+	res1, err := s.p.RequestReply(s.ctx, s.lApp, queryTyp, data)
 	s.Nil(err)
+	if err != nil {
+		// unblock if err
+		wg.Done()
+	}
 
+	res2, err := s.p.RequestReply(s.ctx, s.lApp, queryTyp, data)
+	s.Nil(err)
 	if err != nil {
 		// unblock if err
 		wg.Done()
@@ -218,8 +238,12 @@ func (s *E2ETestSuite) TestE2E_Queries() {
 	wg.Wait()
 
 	dataResJson, _ := json.Marshal(dataRes)
-	s.Exactly(dataResJson, res)
+	s.Exactly(dataResJson, res1)
 
+	dataResJson, _ = json.Marshal(dataRes)
+	s.Exactly(dataResJson, res2)
+
+	s.Equal(2, calls)
 	err = l.Stop()
 	s.Nil(err)
 }
