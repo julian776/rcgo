@@ -3,6 +3,7 @@ package rcgo
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,12 +24,11 @@ type replyStr struct {
 	// Timer to delete the reply when timeout.
 	timer *time.Timer
 }
-type repliesMap map[interface{}]replyStr
 
 type replyRouter struct {
 	id            string
 	ch            *amqp.Channel
-	repliesMap    repliesMap
+	repliesMap    sync.Map
 	timeout       time.Duration
 	prefetchCount int
 }
@@ -44,7 +44,7 @@ func newReplyRouter(
 
 	return &replyRouter{
 		id:            fmt.Sprintf("%s.%s", appName, uuid.NewString()),
-		repliesMap:    make(repliesMap),
+		repliesMap:    sync.Map{},
 		timeout:       timeout,
 		prefetchCount: prefetchCount,
 	}
@@ -59,24 +59,27 @@ func (r *replyRouter) stop(ctx context.Context) error {
 	// that can be added while the publisher is stopped are received.
 	time.Sleep(time.Millisecond * 100)
 
-	for _, replyStr := range r.repliesMap {
+	r.repliesMap.Range(func(_ interface{}, value interface{}) bool {
+		v := value.(replyStr)
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			ctx.Err()
+			return false
 		default:
 		}
 
-		if !replyStr.timer.Stop() {
-			continue
+		if !v.timer.Stop() {
+			return true
 		}
 
-		replyStr.ch <- &Reply{
-			Query: replyStr.query,
+		v.ch <- &Reply{
+			Query: v.query,
 			Err:   ErrCanceledReply,
 		}
 
-		close(replyStr.ch)
-	}
+		close(v.ch)
+		return true
+	})
 
 	return nil
 }
@@ -134,7 +137,7 @@ func (r *replyRouter) listen(ctx context.Context, conn *amqp.Connection) error {
 	msgs, err := r.ch.Consume(
 		queriesQueue.Name, // queue
 		r.id,              // consumer
-		true,              // auto-ack
+		false,             // auto-ack
 		false,             // exclusive
 		false,             // no-local
 		false,             // no-wait
@@ -164,7 +167,8 @@ func (r *replyRouter) listen(ctx context.Context, conn *amqp.Connection) error {
 				}
 			}
 
-			if replyStr, ok := r.repliesMap[corrId]; ok {
+			if v, ok := r.repliesMap.LoadAndDelete(corrId); ok {
+				replyStr := v.(replyStr)
 				// Verify if the timeout has already elapsed.
 				if !replyStr.timer.Stop() {
 					err := m.Ack(false)
@@ -183,8 +187,6 @@ func (r *replyRouter) listen(ctx context.Context, conn *amqp.Connection) error {
 				}
 
 				close(replyStr.ch)
-
-				delete(r.repliesMap, corrId)
 
 				err := m.Ack(false)
 				if err != nil {
@@ -207,26 +209,26 @@ func (r *replyRouter) addReplyToListen(query string, correlationId string) chan 
 		r.cleanReply(correlationId)
 	})
 
-	r.repliesMap[correlationId] = replyStr{
+	r.repliesMap.Store(correlationId, replyStr{
 		query: query,
 		ch:    ch,
 		timer: timer,
-	}
+	})
 
 	return ch
 }
 
 func (r *replyRouter) cleanReply(correlationId string) {
-	replyStr, ok := r.repliesMap[correlationId]
+	v, ok := r.repliesMap.LoadAndDelete(correlationId)
 	if !ok {
 		return
 	}
+
+	replyStr := v.(replyStr)
 
 	replyStr.ch <- &Reply{
 		Err: ErrTimeoutReply,
 	}
 
 	close(replyStr.ch)
-
-	delete(r.repliesMap, correlationId)
 }

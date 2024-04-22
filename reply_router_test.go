@@ -31,7 +31,8 @@ func (s *ReplyRouterTestSuite) Test_addReplyToListen() {
 
 	replyCh := s.replyRouter.addReplyToListen(query, corrId)
 
-	replyStr, ok := s.replyRouter.repliesMap[corrId]
+	v, ok := s.replyRouter.repliesMap.Load(corrId)
+	replyStr := v.(replyStr)
 	s.True(ok)
 	s.Equal(query, replyStr.query)
 
