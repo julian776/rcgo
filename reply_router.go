@@ -59,8 +59,8 @@ func (r *replyRouter) stop(ctx context.Context) error {
 	// that can be added while the publisher is stopped are received.
 	time.Sleep(time.Millisecond * 100)
 
-	r.repliesMap.Range(func(_ interface{}, value interface{}) bool {
-		v := value.(replyStr)
+	r.repliesMap.Range(func(_ interface{}, v interface{}) bool {
+		replyStr := v.(replyStr)
 		select {
 		case <-ctx.Done():
 			ctx.Err()
@@ -68,16 +68,17 @@ func (r *replyRouter) stop(ctx context.Context) error {
 		default:
 		}
 
-		if !v.timer.Stop() {
+		if !replyStr.timer.Stop() {
+			<-replyStr.timer.C
 			return true
 		}
 
-		v.ch <- &Reply{
-			Query: v.query,
+		replyStr.ch <- &Reply{
+			Query: replyStr.query,
 			Err:   ErrCanceledReply,
 		}
 
-		close(v.ch)
+		close(replyStr.ch)
 		return true
 	})
 
@@ -143,51 +144,24 @@ func (r *replyRouter) listen(ctx context.Context, conn *amqp.Connection) error {
 		false,             // no-wait
 		nil,               // args
 	)
-
 	if err != nil {
 		return err
 	}
 
-	go func() {
-		for msg := range msgs {
-			// Create a copy
-			m := msg
+	go r.msgsWorker(ctx, msgs)
 
-			corrId := msg.CorrelationId
-			if corrId == "" {
-				corrId, ok := msg.Headers[correlationIDHeader]
-				if !ok || corrId == "" {
-					err := m.Ack(false)
-					if err != nil {
-						log.Error().Msgf("can not ack/reject msg: %s", err.Error())
-						continue
-					}
+	return nil
+}
 
-					continue
-				}
-			}
+func (r *replyRouter) msgsWorker(ctx context.Context, msgs <-chan amqp.Delivery) {
+	for msg := range msgs {
+		// Create a copy
+		m := msg
 
-			if v, ok := r.repliesMap.LoadAndDelete(corrId); ok {
-				replyStr := v.(replyStr)
-				// Verify if the timeout has already elapsed.
-				if !replyStr.timer.Stop() {
-					err := m.Ack(false)
-					if err != nil {
-						log.Error().Msgf("can not ack/reject msg: %s", err.Error())
-						continue
-					}
-
-					continue
-				}
-
-				replyStr.ch <- &Reply{
-					Query: replyStr.query,
-					Data:  m.Body,
-					Err:   nil,
-				}
-
-				close(replyStr.ch)
-
+		corrId := msg.CorrelationId
+		if corrId == "" {
+			corrId, ok := msg.Headers[correlationIDHeader]
+			if !ok || corrId == "" {
 				err := m.Ack(false)
 				if err != nil {
 					log.Error().Msgf("can not ack/reject msg: %s", err.Error())
@@ -197,13 +171,41 @@ func (r *replyRouter) listen(ctx context.Context, conn *amqp.Connection) error {
 				continue
 			}
 		}
-	}()
 
-	return nil
+		if v, ok := r.repliesMap.LoadAndDelete(corrId); ok {
+			replyStr := v.(replyStr)
+			// Verify if the timeout has already elapsed.
+			if !replyStr.timer.Stop() {
+				err := m.Ack(false)
+				if err != nil {
+					log.Error().Msgf("can not ack/reject msg: %s", err.Error())
+					continue
+				}
+
+				continue
+			}
+
+			replyStr.ch <- &Reply{
+				Query: replyStr.query,
+				Data:  m.Body,
+				Err:   nil,
+			}
+
+			close(replyStr.ch)
+
+			err := m.Ack(false)
+			if err != nil {
+				log.Error().Msgf("can not ack/reject msg: %s", err.Error())
+				continue
+			}
+
+			continue
+		}
+	}
 }
 
 func (r *replyRouter) addReplyToListen(query string, correlationId string) chan *Reply {
-	ch := make(chan *Reply)
+	ch := make(chan *Reply, 1)
 
 	timer := time.AfterFunc(r.timeout, func() {
 		r.cleanReply(correlationId)
