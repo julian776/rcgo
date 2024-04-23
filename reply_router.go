@@ -158,9 +158,9 @@ func (r *replyRouter) msgsWorker(ctx context.Context, msgs <-chan amqp.Delivery)
 		// Create a copy
 		m := msg
 
-		corrId := msg.CorrelationId
+		corrId := m.CorrelationId
 		if corrId == "" {
-			corrId, ok := msg.Headers[correlationIDHeader]
+			corrId, ok := m.Headers[correlationIDHeader]
 			if !ok || corrId == "" {
 				err := m.Ack(false)
 				if err != nil {
