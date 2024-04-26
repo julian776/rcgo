@@ -162,7 +162,7 @@ func (r *replyRouter) msgsWorker(ctx context.Context, msgs <-chan amqp.Delivery)
 		if corrId == "" {
 			corrId, ok := m.Headers[correlationIDHeader]
 			if !ok || corrId == "" {
-				err := m.Ack(false)
+				err := m.Reject(false)
 				if err != nil {
 					log.Error().Msgf("can not ack/reject msg: %s", err.Error())
 					continue
@@ -176,7 +176,7 @@ func (r *replyRouter) msgsWorker(ctx context.Context, msgs <-chan amqp.Delivery)
 			replyStr := v.(replyStr)
 			// Verify if the timeout has already elapsed.
 			if !replyStr.timer.Stop() {
-				err := m.Ack(false)
+				err := m.Reject(false)
 				if err != nil {
 					log.Error().Msgf("can not ack/reject msg: %s", err.Error())
 					continue
@@ -201,6 +201,9 @@ func (r *replyRouter) msgsWorker(ctx context.Context, msgs <-chan amqp.Delivery)
 
 			continue
 		}
+
+		// Reject if no in repliesMap
+		m.Reject(false)
 	}
 }
 
