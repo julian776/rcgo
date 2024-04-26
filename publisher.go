@@ -234,7 +234,13 @@ func (p *Publisher) RequestReply(
 		return []byte{}, err
 	}
 
-	reply := <-resCh
+	var reply *Reply
+
+	select {
+	case reply = <-resCh:
+	case <-ctx.Done():
+		return []byte{}, ctx.Err()
+	}
 
 	if reply.Err != nil {
 		return []byte{}, reply.Err
