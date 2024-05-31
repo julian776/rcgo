@@ -69,6 +69,10 @@ func (l *Listener) Stop() error {
 func (l *Listener) StopWithContext(ctx context.Context) error {
 	fmt.Printf("[LISTENER] Stopping %s...\n", l.appName)
 
+	if l.conn == nil {
+		return nil
+	}
+
 	c := make(chan error)
 
 	go func() {

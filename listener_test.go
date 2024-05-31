@@ -250,3 +250,9 @@ func (s *ListenerTestSuite) TestListener_rejectMsg() {
 
 	s.WithinDuration(n.Add(toElapse), time.Now(), time.Millisecond*10)
 }
+
+func (s *ListenerTestSuite) TestListener_MultipleStops() {
+	s.Nil(s.l.Stop())
+	s.Nil(s.l.Stop())
+	s.Nil(s.l.Stop())
+}
