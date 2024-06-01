@@ -43,7 +43,6 @@ func newReplyRouter(
 	}
 
 	return &replyRouter{
-		id:            fmt.Sprintf("%s.%s", appName, uuid.NewString()),
 		repliesMap:    sync.Map{},
 		timeout:       timeout,
 		prefetchCount: prefetchCount,
@@ -86,6 +85,10 @@ func (r *replyRouter) stop(ctx context.Context) error {
 }
 
 func (r *replyRouter) listen(ctx context.Context, conn *amqp.Connection) error {
+	// We need to ensure that the id is unique to avoid
+	// conflicts with other reply routers.
+	r.id = fmt.Sprintf("%s.%s", uuid.New().String(), "reply")
+
 	ch, err := conn.Channel()
 	failOnError(err, "Failed to open a reply channel")
 

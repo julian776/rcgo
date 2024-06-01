@@ -261,3 +261,45 @@ func (s *E2ETestSuite) TestE2E_Close() {
 	err := s.l.Stop()
 	s.Nil(err)
 }
+
+func (s *E2ETestSuite) TestPublisher_StartAfterStop() {
+	s.p.Start(context.Background())
+
+	// Stop the publisher
+	err := s.p.Stop()
+	s.Nil(err)
+
+	// Try to start the publisher again
+	err = s.p.Start(context.Background())
+	s.Nil(err)
+
+	// Stop the publisher
+	err = s.p.Stop()
+	s.Nil(err)
+
+	// Try to start the publisher again
+	err = s.p.Start(context.Background())
+	s.Nil(err)
+}
+
+func (s *E2ETestSuite) TestListener_StartAfterStop() {
+	lconfigs := NewListenerDefaultConfigs(s.url)
+	lconfigs.LogLevel = "disabled"
+	l := NewListener(lconfigs, s.lApp)
+
+	// Stop the listener
+	err := l.Stop()
+	s.Nil(err)
+
+	// Try to start the listener again
+	err = l.Listen(context.Background())
+	s.Nil(err)
+
+	// Stop the listener
+	err = l.Stop()
+	s.Nil(err)
+
+	// Try to start the listener again
+	err = l.Listen(context.Background())
+	s.Nil(err)
+}

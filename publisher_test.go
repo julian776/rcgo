@@ -56,3 +56,13 @@ func (s *PublisherTestSuite) TestPublisher_BlockSendMsgsIfStopped() {
 	s.Nil(ch)
 	s.ErrorIs(err, ErrPublisherStopped)
 }
+
+func (s *PublisherTestSuite) TestPublisher_MultipleStops() {
+	c := NewPublisherDefaultConfigs("url")
+
+	p := NewPublisher(c, s.appName)
+
+	s.Nil(p.Stop())
+	s.Nil(p.Stop())
+	s.Nil(p.Stop())
+}

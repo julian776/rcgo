@@ -79,13 +79,11 @@ func (l *Listener) StopWithContext(ctx context.Context) error {
 		c <- l.conn.Close()
 	}()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return errors.New("error: ctx expired while stopping listener")
-		case err := <-c:
-			return err
-		}
+	select {
+	case <-ctx.Done():
+		return errors.New("error: ctx expired while stopping listener")
+	case err := <-c:
+		return err
 	}
 }
 
