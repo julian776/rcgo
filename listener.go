@@ -81,7 +81,7 @@ func (l *Listener) StopWithContext(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		return errors.New("error: ctx expired while stopping listener")
+		return errors.New("ctx expired while stopping listener")
 	case err := <-c:
 		return err
 	}
@@ -401,7 +401,7 @@ func (l *Listener) processQuery(
 	if corrId == "" {
 		corrId, ok := msg.Headers[correlationIDHeader].(string)
 		if !ok || corrId == "" {
-			l.rejectMsgWithLog(msg, false, "error: no found correlationID to reply")
+			l.rejectMsgWithLog(msg, false, "correlationID not found. Can not reply")
 			return
 		}
 	}

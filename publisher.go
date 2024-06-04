@@ -65,7 +65,7 @@ func (p *Publisher) StopWithContext(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return errors.New("error: ctx expired while stopping publisher")
+			return errors.New("ctx expired while stopping publisher")
 		case err := <-cErr:
 			return err
 		case <-cDone:
