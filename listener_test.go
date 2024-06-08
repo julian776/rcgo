@@ -269,7 +269,7 @@ func (s *ListenerTestSuite) TestListener_processQueryErrLogs() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	body, err := json.Marshal(queryBody{
-		Resource: "test",
+		Resource: "typeQueryNoHandlers",
 		Data:     map[string]interface{}{},
 	})
 	if err != nil {
@@ -312,7 +312,7 @@ func (s *ListenerTestSuite) TestListener_processQueryErrLogs() {
 					CorrelationId: "1",
 				},
 			},
-			log: "ignoring msg due to no handler registered, msg type [typeEventNoHandlers]",
+			log: "ignoring msg due to no handler registered, msg type [typeQueryNoHandlers]",
 		},
 	}
 	for _, tt := range tests {
