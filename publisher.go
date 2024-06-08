@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rs/zerolog/log"
 )
 
 type Publisher struct {
@@ -34,7 +35,7 @@ func (p *Publisher) Stop() error {
 // server using the specified context.
 func (p *Publisher) StopWithContext(ctx context.Context) error {
 	p.isStopped = true
-	fmt.Printf("[PUBLISHER] Stopping %s...\n", p.appName)
+	log.Info().Msgf("[PUBLISHER] Stopping %s...\n", p.appName)
 
 	if p.conn == nil {
 		return nil
@@ -106,7 +107,7 @@ func (p *Publisher) Start(
 	ctx context.Context,
 ) error {
 	p.isStopped = false
-	fmt.Printf("[PUBLISHER] Starting %s...\n", p.appName)
+	log.Info().Msgf("[PUBLISHER] Starting %s...\n", p.appName)
 
 	conn, err := amqp.Dial(p.configs.Url)
 	if err != nil {
@@ -158,7 +159,7 @@ func (p *Publisher) SendCmd(
 		opts,
 	)
 	if err != nil {
-		return fmt.Errorf("command can not be parsed")
+		return errors.New("command can not be parsed")
 	}
 
 	err = p.ch.PublishWithContext(
@@ -200,7 +201,7 @@ func (p *Publisher) PublishEvent(
 		opts,
 	)
 	if err != nil {
-		return fmt.Errorf("event can not be parsed")
+		return errors.New("event can not be parsed")
 	}
 
 	err = p.ch.PublishWithContext(
@@ -333,7 +334,7 @@ func (p *Publisher) RequestReplyC(
 		opts,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("command can not be parsed")
+		return nil, errors.New("command can not be parsed")
 	}
 
 	err = p.ch.PublishWithContext(

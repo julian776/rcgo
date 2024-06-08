@@ -67,7 +67,7 @@ func (l *Listener) Stop() error {
 // StopWithContext closes the connection with the RabbitMQ
 // server using the specified context.
 func (l *Listener) StopWithContext(ctx context.Context) error {
-	fmt.Printf("[LISTENER] Stopping %s...\n", l.appName)
+	log.Info().Msgf("[LISTENER] Stopping %s...\n", l.appName)
 
 	if l.conn == nil {
 		return nil
@@ -122,7 +122,7 @@ func (l *Listener) AddQueryHandler(
 func (l *Listener) Listen(
 	ctx context.Context,
 ) error {
-	fmt.Printf("[LISTENER] Starting %s...\n", l.appName)
+	log.Info().Msgf("[LISTENER] Starting %s...\n", l.appName)
 
 	formattedUrl := strings.Replace(l.configs.Url, "\r", "", -1)
 
@@ -144,7 +144,7 @@ func (l *Listener) Listen(
 
 			// Cancel the last consumption to initiate another cycle with a new one.
 			cancel()
-			fmt.Printf("[LISTENER] Connection closed by error: %s. reconnecting...\n", err.Error())
+			log.Info().Msgf("[LISTENER] Connection closed by error: %s. reconnecting...\n", err.Error())
 		}
 	}()
 
