@@ -4,10 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/rabbitmq/amqp091-go"
+	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -23,6 +27,7 @@ func (s *ListenerTestSuite) SetupSuite() {
 	s.appName = "testingListenerApp"
 
 	configs := NewListenerDefaultConfigs(url)
+	configs.DelayOnReject = time.Millisecond
 	configs.LogLevel = "disabled"
 	s.l = NewListener(configs, s.appName)
 }
@@ -255,4 +260,183 @@ func (s *ListenerTestSuite) TestListener_MultipleStops() {
 	s.Nil(s.l.Stop())
 	s.Nil(s.l.Stop())
 	s.Nil(s.l.Stop())
+}
+
+func (s *ListenerTestSuite) TestListener_processQueryErrLogs() {
+	b := &strings.Builder{}
+	log.Logger = zerolog.New(b).With().Logger()
+
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	body, err := json.Marshal(queryBody{
+		Resource: "test",
+		Data:     map[string]interface{}{},
+	})
+	if err != nil {
+		s.T().Fatal(err)
+	}
+
+	type args struct {
+		ctx context.Context
+		msg *amqp.Delivery
+	}
+	tests := []struct {
+		name string
+		args args
+		log  string
+	}{
+		{
+			name: "NoBody",
+			args: args{
+				ctx: context.Background(),
+				msg: &amqp.Delivery{},
+			},
+			log: "can not process msg",
+		},
+		{
+			name: "NoCorrelationId",
+			args: args{
+				ctx: context.Background(),
+				msg: &amqp.Delivery{
+					Body: body,
+				},
+			},
+			log: "correlationID not found. Can not reply",
+		},
+		{
+			name: "NoHandlers",
+			args: args{
+				ctx: context.Background(),
+				msg: &amqp.Delivery{
+					Body:          body,
+					CorrelationId: "1",
+				},
+			},
+			log: "ignoring msg due to no handler registered, msg type [typeEventNoHandlers]",
+		},
+	}
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			s.l.processQuery(tt.args.ctx, tt.args.msg)
+
+			str := b.String()
+			if !strings.Contains(str, tt.log) {
+				t.Errorf("Expected log to contain %s, got %s", tt.log, str)
+			}
+
+			b.Reset()
+		})
+	}
+}
+
+func (s *ListenerTestSuite) TestListener_processEventErrLogs() {
+	b := &strings.Builder{}
+	log.Logger = zerolog.New(b).With().Logger()
+
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	body, err := json.Marshal(eventBody{
+		Name: "typeEventNoHandlers",
+		Data: map[string]interface{}{},
+	})
+	if err != nil {
+		s.T().Fatal(err)
+	}
+
+	type args struct {
+		ctx context.Context
+		msg *amqp.Delivery
+	}
+	tests := []struct {
+		name string
+		args args
+		log  string
+	}{
+		{
+			name: "NoBody",
+			args: args{
+				ctx: context.Background(),
+				msg: &amqp.Delivery{},
+			},
+			log: "can not process msg",
+		},
+		{
+			name: "NoHandlers",
+			args: args{
+				ctx: context.Background(),
+				msg: &amqp.Delivery{
+					Body: body,
+				},
+			},
+			log: "ignoring msg due to no handler registered, msg type [typeEventNoHandlers]",
+		},
+	}
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			s.l.processEvent(tt.args.ctx, tt.args.msg)
+
+			str := b.String()
+			if !strings.Contains(str, tt.log) {
+				t.Errorf("Expected log to contain %s, got %s", tt.log, str)
+			}
+
+			b.Reset()
+		})
+	}
+}
+
+func (s *ListenerTestSuite) TestListener_processCmdErrLogs() {
+	b := &strings.Builder{}
+	log.Logger = zerolog.New(b).With().Logger()
+
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	body, err := json.Marshal(cmdBody{
+		Name: "typeCmdNoHandlers",
+		Data: map[string]interface{}{},
+	})
+	if err != nil {
+		s.T().Fatal(err)
+	}
+
+	type args struct {
+		ctx context.Context
+		msg *amqp.Delivery
+	}
+	tests := []struct {
+		name string
+		args args
+		log  string
+	}{
+		{
+			name: "NoBody",
+			args: args{
+				ctx: context.Background(),
+				msg: &amqp.Delivery{},
+			},
+			log: "can not process msg",
+		},
+		{
+			name: "NoHandlers",
+			args: args{
+				ctx: context.Background(),
+				msg: &amqp.Delivery{
+					Body: body,
+				},
+			},
+			log: "ignoring msg due to no handler registered, msg type [typeCmdNoHandlers]",
+		},
+	}
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			s.l.processCmd(tt.args.ctx, tt.args.msg)
+
+			str := b.String()
+			if !strings.Contains(str, tt.log) {
+				t.Errorf("Expected log to contain %s, got %s", tt.log, str)
+			}
+
+			b.Reset()
+		})
+	}
 }
