@@ -26,7 +26,8 @@ type Publisher struct {
 func (p *Publisher) Stop() error {
 	p.isStopped = true
 	ctx := context.Background()
-	ctx, _ = context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
 	return p.StopWithContext(ctx)
 }

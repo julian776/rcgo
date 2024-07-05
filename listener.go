@@ -59,7 +59,8 @@ func NewListener(
 // Stop closes the connection with the RabbitMQ server.
 func (l *Listener) Stop() error {
 	ctx := context.Background()
-	ctx, _ = context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
 	return l.StopWithContext(ctx)
 }
