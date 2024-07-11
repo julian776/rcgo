@@ -119,7 +119,6 @@ func (l *Listener) AddQueryHandler(
 // server and initiates message consumption for each
 // specific type. A consumer is opened only if there
 // is a registered handler for that type.
-// The method blocks until the context is done.
 func (l *Listener) Listen(
 	ctx context.Context,
 ) error {
