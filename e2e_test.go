@@ -45,6 +45,10 @@ func (s *E2ETestSuite) SetupSuite() {
 }
 
 func TestE2ETestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping e2e test in short mode")
+	}
+
 	suite.Run(t, new(E2ETestSuite))
 }
 
