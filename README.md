@@ -15,6 +15,12 @@ Even though the main purpose is to provide such abstractions in a mostly generic
 - [Publisher](./examples/e2e/publisher.go)
 - [Listener](./examples/e2e/listener.go)
 
+# Other Projects
+
+* https://github.com/bancolombia/reactive-commons-java
+* https://github.com/reactive-commons/reactive-commons-js
+* https://github.com/bancolombia/reactive-commons-elixir
+
 # Overview
 
 Reactive Commons Go provides two primary implementations.
